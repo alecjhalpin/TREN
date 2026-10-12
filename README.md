@@ -19,7 +19,7 @@ ChatGPT conversation · Local Ollama fallback · PC tools · Codex coding
 
 ---
 
-VEYRA (formerly TREN) is a Windows-first assistant with a conversational browser interface. Talk through an idea, work on a coding project, or ask it to inspect your PC and carry out reviewed actions. Notes, task history and settings stay on your machine; ChatGPT requests use the cloud, while Ollama provides a local conversation option.
+VEYRA is a Windows-first assistant with a conversational browser interface. Talk through an idea, work on a coding project, or ask it to inspect your PC and carry out reviewed actions. Notes, task history and settings stay on your machine; ChatGPT requests use the cloud, while Ollama provides a local conversation option.
 
 ## What VEYRA can do
 
