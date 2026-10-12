@@ -47,7 +47,7 @@ async function browser(p,signal){
   if(process.platform==='win32'&&!process.env.VEYRA_USE_CHROMIUM)launch.channel='msedge';
   const context=await chromium.launchPersistentContext(folder,launch);const created={context,headless:launch.headless,tabs:new Map(),counter:0,console:[],network:[]};
   if(signal.aborted){await context.close();check(signal)}
-  browsers.set(profile,created);context.on('page',page=>registerPage(created,page));for(const page of context.pages())registerPage(created,page);return created;
+  browsers.set(profile,created);context.on('close',()=>{if(browsers.get(profile)===created)browsers.delete(profile)});context.on('page',page=>registerPage(created,page));for(const page of context.pages())registerPage(created,page);return created;
   })();browserLaunches.set(profile,launchPending);try{entry=await launchPending}finally{browserLaunches.delete(profile)}
  }
  if(signal.aborted){await closeBrowser(profile);check(signal)}
@@ -141,7 +141,7 @@ async function loadLocalModel(factory){
 async function voice(params,signal){
  const cache=path.join(data,'voice_models');
  const loadASR=()=>{if(!asrPromise){asrPromise=(async()=>{const {pipeline,env}=await dependency('@huggingface/transformers');env.cacheDir=cache;return loadLocalModel(()=>pipeline('automatic-speech-recognition','onnx-community/whisper-base',{dtype:'q8',device:'cpu',progress_callback:voiceProgress}))})();asrPromise.catch(()=>asrPromise=null)}return asrPromise};
- const loadTTS=()=>{if(!ttsPromise){ttsPromise=(async()=>{const {KokoroTTS}=await dependency('kokoro-js');return loadLocalModel(()=>KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'q8',device:'cpu',progress_callback:voiceProgress}))})();ttsPromise.catch(()=>ttsPromise=null)}return ttsPromise};
+ const loadTTS=()=>{if(!ttsPromise){ttsPromise=(async()=>{const {env}=await dependency('@huggingface/transformers');env.cacheDir=cache;const {KokoroTTS}=await dependency('kokoro-js');return loadLocalModel(()=>KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'q8',device:'cpu',progress_callback:voiceProgress}))})();ttsPromise.catch(()=>ttsPromise=null)}return ttsPromise};
  if(params.operation==='prepare'){await loadASR();check(signal);await loadTTS();check(signal);return {ready:true,model:'Whisper base + Kokoro · local CPU'}};
  if(params.operation==='voices'){const tts=await loadTTS();return {voices:tts.voices}};
  if(params.operation==='speak'){
