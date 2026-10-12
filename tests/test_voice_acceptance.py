@@ -14,7 +14,8 @@ class VoiceAcceptance(unittest.TestCase):
     if os.name=='nt':
      executable=Path(bridge.proc.args[0]).resolve();private=[str(executable.parent).lower()+os.sep,str(Path(os.environ['VEYRA_TOOLS_ROOT'])/'node_modules/onnxruntime-node/bin/napi-v3/win32/x64').lower()+os.sep]
      command="(Get-Process -Id "+str(bridge.proc.pid)+").Modules | Where-Object {$_.ModuleName -in @('msvcp140.dll','msvcp140_1.dll','vcruntime140.dll','vcruntime140_1.dll')} | Select-Object -ExpandProperty FileName | ConvertTo-Json -Compress"
-     probe=subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',command],capture_output=True,text=True,timeout=20)
+     module_env=dict(os.environ);module_env.pop('PSModulePath',None)
+     probe=subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',command],capture_output=True,text=True,timeout=20,env=module_env)
      self.assertEqual(probe.returncode,0,probe.stderr);loaded=json.loads(probe.stdout)
      if isinstance(loaded,str):loaded=[loaded]
      self.assertTrue(loaded);self.assertTrue(all(any(name.lower().startswith(root) for root in private) for name in loaded),loaded)
