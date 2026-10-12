@@ -1,6 +1,6 @@
-# Use Tren from your iPhone
+# Use VEYRA from your iPhone
 
-First get chat working on your PC with setup.bat and start.bat.
+First get chat working in the VEYRA Windows app. Manual installations can use start.bat.
 
 1. Install **Tailscale** on Windows: https://tailscale.com/download/windows
 2. Install the Tailscale iPhone app from the App Store. Sign into the **same Tailscale account** on PC and phone. Enable its VPN connection on the phone. Review the available personal plan during setup.
@@ -19,8 +19,8 @@ First get chat working on your PC with setup.bat and start.bat.
 4. If prompted, open the link printed by Tailscale to enable HTTPS/Serve. Follow its setup prompt, then rerun the command if requested.
 5. It will show a private HTTPS URL, such as `https://my-pc.example-tailnet.ts.net`. **Use the URL it actually prints.** This example will not work for you.
 6. Open `allowed-hosts.txt` from the assistant folder in Notepad. Add just that hostname on its own line, e.g. `my-pc.example-tailnet.ts.net`, without `https://` or a trailing slash. If Tailscale prints a nonstandard port, include the port in the allowed entry.
-7. Stop Tren with Ctrl+C in its terminal and reopen start.bat. Do not stop Tailscale.
-8. On your phone, while Tailscale is connected, open the private HTTPS URL in Safari. Enter the pairing code printed in the PC terminal.
+7. Quit VEYRA from its application menu/tray and reopen it to load the host setting. If you run the backend manually, stop it with Ctrl+C and reopen start.bat. Keep Tailscale running.
+8. On your phone, while Tailscale is connected, open the private HTTPS URL in Safari. Use the desktop application menu → Show pairing code, or the code printed in a manually launched PC terminal.
 9. In Safari’s Share menu, choose **Add to Home Screen** for an app-like shortcut. It still needs your PC online.
 10. Test away from home: turn off phone Wi-Fi, keep cellular data and Tailscale on, and send a message. The PC remains awake and connected to the internet.
 
