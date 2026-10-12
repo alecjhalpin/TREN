@@ -1,0 +1,45 @@
+name: TREN release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: tren-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build manifest release
+        run: |
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+          from build_release import build
+          v=json.loads(Path('version.json').read_text())['version']
+          build('.', 'TREN-v'+v+'.zip')
+          PYCODE
+      - name: Run regression and UI logic tests
+        run: |
+          python -m unittest discover -s tests -v
+          node tests/ui_logic.cjs
+      - name: Publish a new stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          tag="v$(python -c 'import json; print(json.load(open("version.json"))["version"])')"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; leaving its assets unchanged."
+          else
+            gh release create "$tag" "TREN-$tag.zip" --target "$SOURCE_SHA" --title "TREN $tag" --generate-notes
+          fi

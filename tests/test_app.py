@@ -1,0 +1,226 @@
+import importlib.util
+import json
+from pathlib import Path
+import tempfile
+import sys
+import threading
+import time
+import unittest
+import urllib.error
+import urllib.request
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+spec = importlib.util.spec_from_file_location('assistant', Path(__file__).resolve().parents[1] / 'app.py')
+a = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(a)
+
+
+class AssistantTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        a.DATA = Path(self.temp.name)
+        a.SESSIONS.clear()
+        a.ATTEMPTS.clear()
+        self.code = a.init()
+        self.server = a.ThreadingHTTPServer(('127.0.0.1', 0), a.Handler)
+        self.server.daemon_threads = True
+        self.host = '127.0.0.1:' + str(self.server.server_port)
+        self.server.allowed_hosts = {self.host}
+        self.server.pairing_code = self.code
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.cookie = ''
+
+    def test_coding_api_auth_submit_preview_cancel(self):
+        import codex_tasks
+        manager = codex_tasks.Manager(a.db, a.DATA, lambda: False)
+        with patch.object(a, 'CODING', manager):
+            self.assertEqual(self.request('/api/codex/health')[0], 401)
+            self.login()
+            status, result, _ = self.request('/api/codex/submit', {'prompt': 'Review code', 'project': 'api-test'})
+            self.assertEqual(status, 202)
+            jid = result['id']
+            self.assertEqual(self.request('/api/codex/cancel', {'id': jid})[0], 200)
+            self.assertEqual(manager.jobs()[0]['status'], 'cancelled')
+            (manager.project('api-test')/'hello.py').write_text('print(4)')
+            status, result, _ = self.request('/api/codex/file?project=api-test&path=hello.py')
+            self.assertEqual(status, 200)
+            self.assertEqual(result['text'], 'print(4)')
+            self.assertEqual(self.request('/api/codex/file?project=api-test&path=../pairing-code.txt')[0], 400)
+            self.assertEqual(self.request('/api/providers', {'coding_backend': 'disabled'})[0], 200)
+            self.assertEqual(self.request('/api/codex/submit', {'prompt': 'x', 'project': 'api-test'})[0], 400)
+        manager.close()
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join()
+        self.temp.cleanup()
+
+    def request(self, path, body=None, extra=None):
+        headers = {'Cookie': self.cookie}
+        if body is not None:
+            headers.update({'Content-Type': 'application/json', 'Origin': 'http://' + self.host})
+        headers.update(extra or {})
+        req = urllib.request.Request('http://' + self.host + path, data=None if body is None else json.dumps(body).encode(), headers=headers)
+        try:
+            r = urllib.request.urlopen(req)
+        except urllib.error.HTTPError as e:
+            r = e
+        with r:
+            return r.status, json.load(r), r.headers
+
+    def login(self):
+        status, data, headers = self.request('/api/login', {'code': self.code})
+        self.assertEqual(status, 200)
+        self.cookie = headers['Set-Cookie'].split(';')[0]
+
+    def test_auth_and_origin_and_host(self):
+        self.assertEqual(self.request('/api/state')[0], 401)
+        self.assertEqual(self.request('/api/login', {'code': 'wrong'})[0], 401)
+        self.login()
+        self.assertEqual(self.request('/api/state')[0], 200)
+        self.assertEqual(self.request('/api/memory', {'content': 'Bad'}, {'Origin': 'https://evil.example'})[0], 403)
+        self.assertEqual(self.request('/api/state', extra={'Host': 'evil.example'})[0], 403)
+        self.assertEqual(self.request('/api/logout', {})[0], 200)
+        self.assertEqual(self.request('/api/state')[0], 401)
+
+    def test_pairing_rate_limit(self):
+        for _ in range(10):
+            self.assertEqual(self.request('/api/login', {'code': 'wrong'})[0], 401)
+        self.assertEqual(self.request('/api/login', {'code': self.code})[0], 429)
+
+    def test_chat_and_explicit_memory_persistence(self):
+        self.login()
+        self.assertEqual(self.request('/api/memory', {'content': 'Name: Alec'})[0], 200)
+        captured = []
+        def fake(path, body=None, timeout=5):
+            captured.append(body)
+            return {'message': {'content': 'Hello Alec'}}
+        with patch.object(a, 'ollama_request', side_effect=fake):
+            status, data, _ = self.request('/api/chat', {'message': 'Hello'})
+        self.assertEqual(status, 200)
+        self.assertEqual(data['answer'], 'Hello Alec')
+        self.assertIn('Name: Alec', captured[0]['messages'][0]['content'])
+        self.assertEqual(a.init(), self.code)
+        state = a.state()
+        self.assertEqual(len(state['messages']), 2)
+        self.assertEqual(state['memories'][0]['content'], 'Name: Alec')
+
+    def test_validation_and_model_failure(self):
+        self.login()
+        self.assertEqual(self.request('/api/chat', {'message': ''})[0], 400)
+        self.assertEqual(self.request('/api/tasks', {'title':'x','prompt':'x','next_run':float('nan')})[0], 400)
+        with patch.object(a, 'ollama_request', side_effect=urllib.error.URLError('offline')):
+            status, data, _ = self.request('/api/chat', {'message': 'hello'})
+        self.assertEqual(status, 503)
+        self.assertIn('Ollama', data['error'])
+        self.assertEqual(a.state()['messages'], [])
+
+    def test_due_claim_once_and_recurring_catchup(self):
+        with a.db() as c:
+            c.execute('INSERT INTO tasks(title,prompt,next_run,interval_seconds) VALUES(?,?,?,?)', ('once','hello',100,0))
+            c.execute('INSERT INTO tasks(title,prompt,next_run,interval_seconds) VALUES(?,?,?,?)', ('repeat','hello',100,3600))
+        first = a.claim_due(10000)
+        second = a.claim_due(10000)
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        self.assertIsNone(a.claim_due(10000))
+        with a.db() as c:
+            tasks = list(c.execute('SELECT * FROM tasks ORDER BY id'))
+        self.assertEqual(tasks[0]['enabled'], 0)
+        self.assertEqual(tasks[1]['next_run'], 10900)
+        with patch.object(a, 'generate', return_value='Scheduled answer'):
+            a.execute_run(*first)
+        self.assertEqual(a.state()['runs'][-1]['status'], 'done')
+        a.init()
+        self.assertEqual(a.state()['runs'][0]['status'], 'interrupted')
+
+    def test_prompt_run_and_failure_record(self):
+        self.login()
+        now = time.time()
+        self.assertEqual(self.request('/api/tasks', {'title':'Review','prompt':'Suggest next steps','next_run':now+10,'interval_seconds':0})[0], 200)
+        item = a.claim_due(now+20)
+        with patch.object(a, 'generate', side_effect=RuntimeError('offline')):
+            a.execute_run(*item)
+        self.assertEqual(a.state()['runs'][0]['status'], 'failed')
+        self.assertEqual(a.state()['runs'][0]['result'], 'offline')
+        self.assertEqual(self.request('/api/tasks/delete', {'id':item[0]['id']})[0], 200)
+        self.assertEqual(a.state()['tasks'], [])
+
+
+    def test_web_tool_loop_and_source_links(self):
+        self.login()
+        responses = [
+            {'message': {'role': 'assistant', 'content': '', 'tool_calls': [{'function': {'name': 'web_search', 'arguments': {'query': 'test'}}}]}},
+            {'message': {'role': 'assistant', 'content': 'A grounded answer'}}]
+        with patch.object(a, 'ollama_request', side_effect=responses), patch.object(a.webtools, 'run', return_value={'results': [{'title':'Source','url':'https://example.com'}]}):
+            status, data, _ = self.request('/api/chat', {'message': 'Search for test'})
+        self.assertEqual(status, 200)
+        self.assertIn('https://example.com', data['answer'])
+        self.assertEqual(a.state()['events'][0]['status'], 'done')
+
+    def test_gaming_pause_and_web_setting(self):
+        self.login()
+        with patch.object(a, 'ollama_request', return_value={}):
+            self.assertEqual(self.request('/api/settings', {'key':'gaming','value':True})[0], 200)
+        with a.db() as c:
+            c.execute('INSERT INTO tasks(title,prompt,next_run,interval_seconds) VALUES(?,?,?,?)', ('once','hello',100,0))
+        self.assertIsNone(a.claim_due(1000))
+        self.assertTrue(a.state()['gaming'])
+        self.assertEqual(self.request('/api/tasks/run', {'id':1})[0], 400)
+        self.assertEqual(self.request('/api/settings', {'key':'web_enabled','value':False})[0], 200)
+        with self.assertRaises(RuntimeError):
+            a.use_web_tool('web_search', {'query':'test'})
+        self.assertEqual(self.request('/api/settings', {'key':'gaming','value':False})[0], 200)
+        self.assertIsNotNone(a.claim_due(1000))
+
+    def test_direct_commands_do_not_call_model(self):
+        self.login()
+        with patch.object(a, 'generate', side_effect=AssertionError('Should not use model')):
+            self.assertEqual(self.request('/api/chat', {'message':'/remember I prefer concise answers'})[0], 200)
+            status, data, _ = self.request('/api/chat', {'message':'/remind 10m | Review | Suggest project next steps'})
+            self.assertEqual(status, 200)
+            self.assertIn('Created task', data['answer'])
+            self.assertEqual(self.request('/api/chat', {'message':'/remind nonsense'})[0], 400)
+        self.assertEqual(a.state()['memories'][0]['content'], 'I prefer concise answers')
+        self.assertEqual(len(a.state()['tasks']), 1)
+
+    def test_tool_budget_is_bounded(self):
+        calls = [{'function': {'name': 'web_search', 'arguments': {'query': 'test'}}}] * 10
+        with patch.object(a, 'ollama_request', return_value={'message': {'role':'assistant','tool_calls':calls}}), patch.object(a.webtools, 'run', return_value={'results': []}) as run:
+            with self.assertRaises(RuntimeError):
+                a.generate([{'role':'user','content':'search'}])
+            self.assertEqual(run.call_count, 6)
+
+    def test_update_endpoints_require_auth_and_confirm(self):
+        class FakeUpdates:
+            def state(self):return {'version':'0.5.0'}
+            def check(self,repo):return {'version':'0.6.0','available':True}
+            def stage(self,raw,origin):return {'staged':{'version':'0.6.0'}}
+        with patch.object(a,'UPDATER',FakeUpdates()):
+            self.assertEqual(self.request('/api/updates/state')[0],401)
+            self.assertEqual(self.request('/api/updates/upload',{'zip':'bad'})[0],401)
+            self.login()
+            self.assertEqual(self.request('/api/updates/check',{'repository':'owner/repo'})[0],200)
+            self.assertEqual(self.request('/api/updates/upload',{'zip':'!bad'})[0],400)
+            self.assertEqual(self.request('/api/updates/install',{})[0],400)
+            with patch.object(a,'begin_update') as begin:
+                self.assertEqual(self.request('/api/updates/install',{'confirmed':True})[0],202)
+                begin.assert_called_once()
+
+    def test_update_rejects_queued_work_and_releases_maintenance(self):
+        import codex_tasks
+        manager=codex_tasks.Manager(a.db,a.DATA,lambda:False)
+        manager.submit({'prompt':'test','project':'test'})
+        with patch.object(a,'CODING',manager):
+            with self.assertRaises(ValueError):a.begin_update(self.server)
+            self.assertFalse(a.UPDATING.is_set())
+            self.assertTrue(a.GENERATION_LOCK.acquire(blocking=False));a.GENERATION_LOCK.release()
+        manager.close()
+
+
+if __name__ == '__main__':
+    unittest.main()

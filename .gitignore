@@ -1,0 +1,8 @@
+data/
+backups/
+__pycache__/
+*.pyc
+allowed-hosts.txt
+*.zip
+update-manifest.json
+*.log
