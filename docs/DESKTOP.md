@@ -1,6 +1,6 @@
 # Windows desktop setup
 
-## Fresh install — v0.11.0
+## Fresh install — v0.11.1
 
 Download the Windows desktop installer from Releases and open its shortcut. No separate backend extraction is required for new users. The installer bundles a clean backend, Python 3.14.8 embeddable runtime and Node 24.21.0. The launcher prepares a private managed backend/runtime directory under the desktop profile when no existing installation is selected/found. Existing installations and data are retained. Compatible installed Python can be reused; global runtimes are not replaced.
 
@@ -12,8 +12,8 @@ The themed draggable title bar contains an application-menu button and native wi
 
 ## Existing TREN users
 
-1. In your working TREN, install backend v0.10.0 through Settings → Updates.
-2. Download VEYRA-Desktop-Setup-0.11.0.exe from the same GitHub release. Run the per-user installer; desktop and Start menu shortcuts are created.
+1. In your working TREN, install the latest backend through Settings → Updates.
+2. Download VEYRA-Desktop-Setup-0.11.1.exe from the same GitHub release. Run the per-user installer; desktop and Start menu shortcuts are created.
 3. Open VEYRA. It uses Desktop/Tren-Local if present, otherwise asks you to select your existing installation folder. That folder must contain app.py, index.html and version.json. It does not copy/reinstall your models, Python or data.
 4. If an already-running compatible backend belongs to that folder, the window connects to it. Otherwise it launches the existing Python backend without a console window. The first version uses port 8765, or TREN_PORT when configured in the launching environment.
 5. Pair the desktop window once. Native VEYRA menu → Show pairing code → Copy code displays the local installation's code. Paste it into the pairing screen and leave Remember this device checked. Desktop cookies are separate from browser cookies.

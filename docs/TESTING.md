@@ -2,10 +2,10 @@
 
 ## Current automated baseline
 
-v0.11.0: 83 backend tests and 6 desktop tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
+v0.11.1: 84 backend tests and 6 desktop tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
 
 ```sh
-python build_release.py TREN-v0.11.0.zip
+python build_release.py TREN-v0.11.1.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```
@@ -73,3 +73,5 @@ Actions 38258749000 verified backend/UI/desktop tests, both Windows bootstrap sm
 Follow-up Actions 38259481391 passed all checks and both visible Windows smoke modes with computed light/dark background assertions. Existing v0.11.0 release assets were retained. Installed upgrade/user acceptance remains separate.
 
 User-confirmed 2026-10-12: explicitly requested harmless elevated PowerShell administrator-status diagnostic completed after VEYRA approval and Windows UAC. This verifies reported basic UAC success, not all elevated cancellation/failure cases. v0.11.1 installer folder/shortcut/upgrade acceptance is separate from prior Electron bootstrap smoke.
+
+Actions 38298913633 passed v0.11.1 validation, Windows bootstrap/packaging and real assisted-installer acceptance: visible checkbox defaults checked, interactive opt-out, silent-update opt-out preservation, manual shortcut creation with correct target, legacy folder replacement, sign-in target migration and preserved profile marker. Legacy upgrade is seeded using this installer at the old folder, not every historical package. Installer options screenshot was retained in the release; user-installed upgrade acceptance remains separate.
