@@ -67,6 +67,10 @@
       {
         "from": "resources/node",
         "to": "node"
+      },
+      {
+        "from": "resources/tool-runtime",
+        "to": "tool-runtime"
       }
     ],
     "executableName": "TREN"

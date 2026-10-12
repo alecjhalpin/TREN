@@ -23,6 +23,9 @@ MAX_ZIP = 16 * 1024 * 1024
 MAX_UNPACKED = 64 * 1024 * 1024
 CORE = {'app.py','index.html','webtools.py','providers.py','codex_tasks.py','start.bat','upgrade.bat',
         'upgrade.py','update_runtime.py','version.json','verify-codex.bat','build_release.py','setup.bat','setup.ps1'}
+CORE.update({'agent_runtime.py','admin_broker.py','tool_bridge.py','ui_extensions.js',
+             'runtime/worker.mjs','runtime/snapshot.mjs','runtime/package.json','runtime/package-lock.json',
+             'vendor/golemancy/LICENSE','vendor/golemancy/NOTICE.md'})
 HOSTS = {'api.github.com','github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'}
 REQUIRED = {'app.py','index.html','codex_tasks.py','providers.py','webtools.py','update_runtime.py','version.json'}
 

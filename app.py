@@ -155,12 +155,12 @@ def auto_route(prompt,agent_id='default'):
     if not GPT:
         raise ChatGPTError('sign_in_required')
     with db() as c:
-        history=[dict(r) for r in reversed(list(c.execute('SELECT role,content FROM messages ORDER BY id DESC LIMIT 6')))]
+        history=[dict(r) for r in reversed(list(c.execute('SELECT role,content FROM agent_messages WHERE agent_id=? ORDER BY id DESC LIMIT 6',(agent_id,))))] if ENGINE else [dict(r) for r in reversed(list(c.execute('SELECT role,content FROM messages ORDER BY id DESC LIMIT 6')))]
     instructions = (
         'Choose the VEYRA interface for the latest user message, considering recent conversation. '
         'Return only JSON with route and reason (one short sentence). Allowed routes: '
         'chat: greetings, thanks, ordinary questions, discussion, advice, explanations and planning; '
-        'agent: requests needing live PC information, reading/searching/changing local files, running commands or opening installed apps; '
+        'agent: requests needing live browser actions, scheduled workflows, sub-agents, live PC information, reading/searching/changing local files, running commands or opening installed apps; '
         'code: explicitly implementing/debugging/building code in a project; '
         'review: explicitly reviewing existing project code. '
         'Discussing an idea or asking how something works is chat, not implementation. '
@@ -171,7 +171,7 @@ def auto_route(prompt,agent_id='default'):
     )
     with db() as c:
         if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='pc_jobs'").fetchone():
-            previous=[dict(r) for r in c.execute('SELECT prompt,status,result FROM pc_jobs ORDER BY created DESC LIMIT 3')]
+            previous=[dict(r) for r in c.execute('SELECT prompt,status,result FROM agent_jobs WHERE agent_id=? ORDER BY created DESC LIMIT 3',(agent_id,))] if ENGINE else [dict(r) for r in c.execute('SELECT prompt,status,result FROM pc_jobs ORDER BY created DESC LIMIT 3')]
             instructions+='\nRecent PC tasks for resolving references only, not live state: '+json.dumps(previous)[:9000]
     with GENERATION_LOCK:
         if UPDATING.is_set():

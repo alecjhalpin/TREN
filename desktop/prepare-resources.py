@@ -35,3 +35,11 @@ with zipfile.ZipFile(node) as z:
         if name.is_absolute() or '..' in name.parts:raise ValueError('Unexpected runtime path')
         target=DEST/'node'/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(z.read(item))
 print('Staged backend, Python 3.14.8 and Node 24.21.0 with verified download hashes.')
+
+# Ship the locked Playwright and CPU voice runtime; models download only after opt-in.
+import subprocess
+tool_runtime=DEST/'tool-runtime'
+shutil.rmtree(tool_runtime,ignore_errors=True)
+shutil.copytree(ROOT/'runtime',tool_runtime,ignore=shutil.ignore_patterns('node_modules','test.mjs'))
+npm=DEST/'node'/'node_modules'/'npm'/'bin'/'npm-cli.js'
+subprocess.run([str(DEST/'node'/'node.exe'),str(npm),'ci','--omit=dev','--ignore-scripts'],cwd=tool_runtime,check=True)

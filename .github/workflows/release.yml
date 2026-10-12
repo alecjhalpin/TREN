@@ -1,7 +1,7 @@
 name: VEYRA release
 on:
   push:
-    branches: [main]
+    branches: [main, mega-update]
   workflow_dispatch:
 permissions:
   contents: write
@@ -19,6 +19,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Locked tool runtime tests
+        working-directory: runtime
+        run: |
+          npm ci --ignore-scripts
+          node --test test.mjs
       - name: Build and verify backend
         run: |
           python -c "import json; from build_release import build; build('.', 'TREN-v'+json.load(open('version.json'))['version']+'.zip')"
@@ -42,6 +47,11 @@ jobs:
           node-version: '24'
       - name: Stage first-install backend and runtimes
         run: python desktop/prepare-resources.py
+      - name: Real Edge browser automation
+        working-directory: runtime
+        env:
+          VEYRA_TOOLS_ROOT: ${{ github.workspace }}/desktop/resources/tool-runtime
+        run: node --test test.mjs
       - name: Install locked desktop dependencies
         working-directory: desktop
         run: npm ci
@@ -85,6 +95,7 @@ jobs:
           name: desktop
           path: desktop/release-out/*
   publish:
+    if: github.ref == 'refs/heads/main'
     needs: [validate, desktop]
     runs-on: ubuntu-latest
     steps:

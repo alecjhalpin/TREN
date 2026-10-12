@@ -28,3 +28,9 @@ Golemancy inspected at d39b6620414a022b0a0a6707b8861322ea251826 (Apache-2.0). Br
 ## Architecture
 
 Keep Python/SQLite core and official GPT plan-sharing. Add a bounded multi-agent/workflow engine, a pooled Node tool worker (Playwright/MCP/local Whisper), voice UI with Windows speech synthesis, and an explicitly installed elevated worker for unattended admin commands. Desktop packaging supplies dependency setup and coordinated backend upgrade. Separate agent contexts and browser profiles; inherited tool permissions cannot exceed a parent's; shared root budgets cover recursive children. Model-reported usage is distinguished from unavailable quota information.
+
+## Checkpoint: implementation and verification in progress
+
+The working branch implements the SQLite agent/workflow engine, permission snapshots and action-bound approvals, scoped memory, checkpoints and shared budgets, MCP transports, Playwright tools, local Whisper/Kokoro voice wiring, orb/workbench UI, and elevated-worker setup. These are source implementations, not a completed release.
+
+Verified locally: 93 Python tests (including 9 agent-runtime tests), 6 desktop regression tests, and 3 real MCP/snapshot tests. Backend archive generation now includes the new modules and runtime manifests. The full packaged Windows upgrade, microphone/voice models, Edge UI integration, and elevated unattended installation acceptance remain pending. The local Chromium download failed; Windows CI uses Edge. No mega-update release is published.

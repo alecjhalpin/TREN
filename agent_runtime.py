@@ -253,11 +253,18 @@ class Engine:
     def cancel(self,jid):
         with self.lock:
             job=self.job(jid)
+            descendants={jid}
+            with self.db() as c:relationships=[dict(r) for r in c.execute('SELECT id,parent_id FROM agent_jobs WHERE root_id=?',(job['root_id'],))]
+            while True:
+                expanded=descendants|{r['id'] for r in relationships if r['parent_id'] in descendants}
+                if expanded==descendants:break
+                descendants=expanded
             for key,item in self.active.items():
-                if key==jid or job['root_id']==jid and self.job(key)['root_id']==jid:
+                if key in descendants:
                     item['cancel'].set();self.update(key,status='cancelling')
                     if key in self.pending:self.pending[key]['event'].set()
-            if self.cancel_response:self.cancel_response(jid)
+            if self.cancel_response:
+                for key in descendants:self.cancel_response(key)
             if jid==job['root_id'] and jid in self.budgets:self.budgets[jid].cancel.set()
     def stop_all(self,pause=True):
         if pause:self.set('paused',1)
@@ -511,7 +518,15 @@ class Engine:
         # Validate everything before committing; merge by ID, keeping existing secrets untouched.
         for table,rows in tables.items():
             if table not in {'agents','agent_memory','workflows','runtime_settings'} or not isinstance(rows,list) or len(rows)>10000:raise ValueError('Invalid backup tables.')
+        restored_limits=None
+        for row in tables.get('runtime_settings',[]):
+            if row.get('key')=='limits':
+                value=json.loads(row['value'])
+                if not isinstance(value,dict) or set(value)-set(DEFAULT_LIMITS):raise ValueError('Invalid restored limits.')
+                bounds={'concurrency':(1,16),'calls':(1,10000),'seconds':(30,86400),'depth':(1,20),'agents':(1,1000),'context_chars':(4000,1000000)}
+                restored_limits={key:number(value.get(key,default),*bounds[key]) for key,default in DEFAULT_LIMITS.items()}
         with self.db() as c:
+            if restored_limits is not None:c.execute("INSERT OR REPLACE INTO runtime_settings VALUES('limits',?)",(json.dumps(restored_limits),))
             for row in tables.get('agents',[]):
                 identifier(row['id']);identifier(row['project']);text(row['name'],80);text(row['instructions'],12000)
                 if set(json.loads(row['tools']))-FAMILIES:raise ValueError('Invalid restored tools.')
