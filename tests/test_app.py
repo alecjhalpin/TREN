@@ -446,5 +446,23 @@ class AssistantTests(unittest.TestCase):
         manager.close()
 
 
+    def test_stop_cancels_active_local_inference_response(self):
+        gate=threading.Event();opened=threading.Event();errors=[]
+        class Response:
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def read(self,*args):opened.set();gate.wait(2);return b'{}'
+            def close(self):gate.set()
+        response=Response()
+        class Opener:
+            def open(self,*args,**kwargs):return response
+        def infer():
+            try:a.ollama_request('/api/chat',{},timeout=2)
+            except Exception as error:errors.append(error)
+        with patch.object(a.urllib.request,'build_opener',return_value=Opener()),patch.object(a,'GPT',None):
+            thread=threading.Thread(target=infer,name='local-fixture');thread.start();self.assertTrue(opened.wait(1));a.cancel_provider_requests('local-fixture');thread.join(1)
+        self.assertFalse(thread.is_alive());self.assertIsInstance(errors[0],InterruptedError);self.assertFalse(a.OLLAMA_REQUESTS)
+
+
 if __name__ == '__main__':
     unittest.main()

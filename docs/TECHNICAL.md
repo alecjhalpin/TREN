@@ -1,6 +1,6 @@
-# TREN technical guide
+# VEYRA technical guide
 
-Current source: v0.10.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
+Current candidate source: v0.12.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
 
 ## Architecture and providers
 
@@ -100,3 +100,15 @@ Assistant profile names and setup completion are SQLite settings. Existing users
 ## Brand transition — v0.11.0
 
 Public product name: VEYRA (formerly TREN). Assistant identity is stored separately in SQLite. New fallback name: Nova; completed returning profiles without a saved name are assigned their historic TREN name using INSERT OR IGNORE. Saved custom names are never replaced. Backend desktop application identifier remains TREN for compatibility; public OAuth consent hints/sign-in text use VEYRA. Internal environment variables, controller headers, repo/appId/package/executable identities and release ZIP naming remain unchanged. Frontend welcome art is embedded so older strict release allowlists still receive it without new backend asset routes. Desktop icon and GitHub hero assets live in the repository; desktop packaging includes its icon.
+
+## Integrated agent runtime
+
+`agent_runtime.py` adds agent/workflow/message/memory/job tables to the existing SQLite database. Each agent has an independent context and workspace; enabled whole-PC tools are not OS-sandboxed. Root tasks share call, runtime, context, agent-count, concurrency and depth limits. A runtime watchdog cancels blocked provider requests; tool/process cancellation checks the same shared state. Model-reported usage is shown separately from unavailable plan quota information.
+
+The private NDJSON Node worker pools dedicated Playwright profiles and stdio/streamable-HTTP MCP connections. MCP credentials stay protected on the current Windows account. Native OAuth MCP authorization is not implemented; configure trusted commands or HTTP headers explicitly. Browser/file/MCP content is untrusted evidence. Local Whisper/Kokoro models are cached under data; voice never needs a paid voice API.
+
+Cron workflows use local time or UTC, coalesce missed runs and avoid overlap. A failed/uncertain previous run pauses its schedule for inspection. Restart marks incomplete jobs interrupted, without replay. Continuing a checkpoint records prior descendant effects and blocks exact mutation replay. Arbitrary shell effects are not automatically undoable; file-tool backups and updater rollback have narrower verified guarantees.
+
+Automatic PC mode requires explicit warning/confirmation; a separately enrolled per-user Highest interactive Task Scheduler worker handles approved unattended administrator requests after one-time UAC. Requests/results are authenticated, expire, and remain tied to the requesting process identity. Stop All pauses new execution/schedules and cancels providers, tools and owned subprocesses. Windows must remain awake and signed in.
+
+Portable backups include agents, memory, workflows, budgets and selected settings. Credentials, browser sessions and elevation keys are excluded. Restore leaves execution paused, schedules disabled and access in review; reconnect MCP separately. The complete desktop updater has a built-in release source; backend manifests/backups preserve data during startup migration.

@@ -19,14 +19,14 @@ ChatGPT conversation · Local Ollama fallback · PC tools · Codex coding
 
 ---
 
-VEYRA is a Windows-first assistant with a conversational browser interface. Talk through an idea, work on a coding project, or ask it to inspect your PC and carry out reviewed actions. Notes, task history and settings stay on your machine; ChatGPT requests use the cloud, while Ollama provides a local conversation option.
+VEYRA is a Windows-first personal AI agent with a conversation-first desktop interface. Talk through an idea, work on a coding project, or ask it to inspect your PC and carry out reviewed actions. Notes, task history and settings stay on your machine; ChatGPT requests use the cloud, while Ollama provides a local conversation option.
 
 ## What VEYRA can do
 
 | | Capabilities |
 | --- | --- |
 | **Conversation** | ChatGPT through eligible-plan sharing, with optional Ollama fallback. |
-| **PC tasks** | Inspect drives and files, manage files, and run reviewed PowerShell commands. Requested administrator commands use Windows UAC. |
+| **PC tasks** | Inspect drives and files, manage files, and run reviewed PowerShell commands. Automatic mode requires explicit opt-in; an optional elevated worker supports unattended administrator actions after UAC setup. |
 | **Coding** | Queue project-scoped Codex tasks using your existing ChatGPT CLI login. |
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside VEYRA, back up app files and restart while preserving your data. |
@@ -56,7 +56,7 @@ Basic ChatGPT/PC-agent setup no longer needs a separate Python/Node installation
 
 ### Existing TREN users
 
-Update the backend through Settings → Updates first, then update/install the desktop shell. Keep your existing Tren-Local folder: data, auth, projects and models remain there. Rename your assistant under Settings → Your assistant. Returning users are not forced through a fresh setup.
+Install the new complete desktop package over your existing installation. It upgrades the selected backend on startup with verified backups. Keep your existing Tren-Local folder: data, auth, projects and models remain there. Rename your assistant under Settings → Your assistant. Returning users are not forced through a fresh setup.
 
 ### Source/browser setup
 
@@ -64,7 +64,7 @@ The release ZIP and setup.bat remain available for manual/source installations. 
 
 ## Updating VEYRA
 
-For installations with in-app updates: **Settings → Updates → Check for updates → Download update → Install & restart**. Use repository `alecjhalpin/Veyra`.
+In the installed desktop app: **Settings → Updates → Update VEYRA**. The app downloads the complete update and asks before installing and restarting. Source/browser installations retain their backend update and recovery controls.
 
 Updates preserve current data, pairing secrets, projects, host settings and installed models. Finish or cancel active work first. **Do not rerun setup to upgrade.**
 
@@ -79,7 +79,7 @@ If an update fails its startup check, inspect `data/updates/restart.log` in the 
 
 ## What's next
 
-Further desktop polish, private iPhone access, voice, and an animated orb interface are planned. Visual desktop/browser automation is also future work. The desktop companion wraps the current conversation interface; a native iPhone app and voice are not delivered.
+The current candidate adds local voice/orb and browser automation. Next priorities are real daily-use acceptance, accessibility and performance polish. Native visual desktop interaction, additional providers and phone capability remain future work; there is no wake word.
 
 [Roadmap and v1.0 criteria](ROADMAP.md) · [Private phone setup](PHONE-SETUP.md) · [ChatGPT integration details](https://github.com/alecjhalpin/Veyra/blob/main/docs/TECHNICAL.md)
 

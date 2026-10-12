@@ -1,32 +1,29 @@
 # VEYRA direction and v1.0 criteria
 
-VEYRA is a GPT-first Windows personal AI agent, inspired by assistants such as DOTS. Conversation is its interface; it should solve new tasks with general file, execution and application tools, reducing custom feature updates. Existing ChatGPT plan usage is preferred; avoid extra API subscriptions/spending. Ollama remains available for local chat/fallback and routines.
+VEYRA is a GPT-first Windows personal AI agent. Conversation is its interface: general file, PowerShell, browser and connected MCP tools should solve new tasks without a custom feature release for each request. Eligible ChatGPT plan sharing is preferred; Ollama is an optional local chat/fallback provider. Codex remains the coding specialist.
 
-## Current delivered foundation
+## Integrated v0.12 update
 
-v0.8 provides general PC-tool planning/execution/results, reviewed commands and file changes, local file/drive inspection and task-specific UAC. Prior releases added GPT conversation, memory/routines, project-scoped Codex, reliable GitHub updates, persistent pairing and composer behavior. Windows basic GPT/v0.7 use, correct live drive inspection and basic v0.8.4 Auto routing are user-confirmed. Temporary-file changes, harmless PowerShell, denial and cancellation were user-confirmed. Real UAC and broader acceptance remain pending.
+Implemented on `mega-update`: whole-PC automatic mode with explicit warning/confirmation, optional elevated worker after normal UAC setup, cron workflows, scoped SQLite memory, MCP, Playwright browser profiles, independent agents and recursive sub-agents, workspace previews, inbox/notifications, Stop All, shared limits, checkpoints, portable backups, unified desktop updates, local voice and an abstract listening/thinking/speaking orb. Implementation and verification are distinct; see [Development acceptance](docs/DEVELOPMENT.md) and [Testing](docs/TESTING.md).
 
-## Next priorities
+Phone capability and a wake word are outside this update. Click the microphone to speak. An agent's workspace/context is separate, but a whole-PC agent is not an operating-system sandbox. Recursive work shares configurable depth, runtime, context, call and agent limits. The PC must be awake, signed in and running VEYRA for scheduled work; it cannot execute while Windows is shut down or asleep.
 
-1. Expand verified PC inspection and test a temporary-file task, an approved harmless PowerShell command, denial/cancellation and an explicitly requested harmless elevated diagnostic. Inspect logs before retrying any partially completed task.
-2. Verify installed desktop upgrades and lifecycle: installer/shortcuts, tray lifecycle, sign-in launch, remembered pairing and backend/shell updates. Continue desktop polish using the existing backend.
-3. Private iPhone access/usable packaging on the same backend, verified Safari sessions and task approvals.
-4. Voice input/output, latency and interruption, using supported routes compatible with the spending requirement.
-5. Abstract animated orb with listening/thinking/speaking states and floating task panels; no human avatar; keep text chat.
-6. Broader reliable app/browser interaction and stronger long-task recovery/undo, import/export, context/project handling and automation as supported. Native visual computer-use is unavailable on current plan-sharing; investigate supported local alternatives before promising parity.
+## v1.0 readiness
 
-## v1.0 readiness — do not bump early
+Keep 0.x versions until the complete daily-use experience is dependable:
 
-Keep using 0.x versions (including 0.10 and later if needed). Reserve v1.0 for a dependable, substantially complete daily-use agent: verified PC tasks and administrator handling; clear permissions, cancellation and honest partial-failure reporting; reliable update/restart/data preservation; desktop launch without routine terminal work; real phone acceptance; agreed voice and clean assistant experience; and a representative acceptance suite beyond synthetic tests. Published version numbers alone do not establish readiness. Review remaining limitations and obtain the user’s agreement on the final v1.0 scope before the release.
+1. Fresh installation and upgrades preserve conversations, names, pairing, provider credentials, projects and model caches.
+2. Chat, Auto routing, PC actions and Codex work together with the user's real provider account, including errors and reconnects.
+3. Whole-PC permissions, reviewed/automatic actions, revocation, cancellation and administrator enrollment behave clearly on an ordinary Windows PC.
+4. Scheduled and recursive work survives interruption with honest partial results and no silent mutation replay. Representative installation tasks include dependency installation and independently verified execution.
+5. Physical microphone/speaker selection, voice latency, interruption and the conversation/orb UI are comfortable in daily use.
+6. The installer and one-touch updater work through a real installed-version upgrade, with rollback/recovery and clear error messages.
+7. Accessibility, packaging notices, dependency maintenance and a representative acceptance suite are ready for public distribution.
 
-For each new release, replace README’s current “What's new” feature list; append older history to the single CHANGELOG.md. Planned ideas are not delivered features.
+Review observed daily-use issues and agree the remaining scope before calling the product 1.0. A green CI run and a larger feature list alone do not establish that milestone.
 
-## Product identity and provider expansion
+## Later work and discussed ideas
 
-The public application is VEYRA; legacy repository/package identifiers remain for update compatibility. Each user can name their personal assistant independently in v0.10.0. Future provider choices requested: DeepSeek, Grok and Claude. Their authentication, eligible capabilities, costs and fallback behavior must be designed and verified before integration; they are not currently available. Preserve existing GPT-first plan-sharing and optional Ollama behavior while adding them.
+Additional providers (DeepSeek, Grok and Claude), supported native visual desktop interaction, broader MCP authentication, performance improvements and stronger workflow editing are future candidates. Their authentication, cost and capabilities must be verified before claiming support. Private phone access can be revisited separately; it is not a prerequisite for this Windows-focused mega-update.
 
-Verify fresh-install runtime/bootstrap, assistant-name onboarding, optional dependency installers, integrated title bar and readable mode picker. v0.11 preserves existing installation/data paths and update identity through the VEYRA rebrand.
-
-## Product identity
-
-VEYRA is the public application, with “Your AI. Your computer. Your rules.” as its tagline. Assistant naming is independent; Nova is the onboarding example. Preserve existing profiles, assistant names and update compatibility through the rebrand. Use the approved metallic V artwork for welcome/GitHub branding, a standalone V for app icons and restrained blue UI accents. iPhone, voice, an animated orb and additional providers remain future work.
+The public app is VEYRA, “Your AI. Your computer. Your rules.” Each user names their assistant independently; Nova is the example. Preserve legacy internal identities where they protect installed data. For each release, replace README's current feature list and append history to the single CHANGELOG; do not add per-version README/changelog files.

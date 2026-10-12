@@ -61,11 +61,14 @@ def cron_matches(expression,when):
     return values[0] in sets[0] and values[1] in sets[1] and values[3] in sets[3] and daymatch
 
 def next_cron(expression,now=None,timezone='local'):
-    cron_fields(expression)
+    tokens,sets=cron_fields(expression)
     stamp=int(time.time() if now is None else now)//60*60+60
     for _ in range(60*24*366*5):
         when=datetime.datetime.fromtimestamp(stamp,datetime.timezone.utc) if timezone=='UTC' else datetime.datetime.fromtimestamp(stamp)
-        if cron_matches(expression,when):return stamp
+        values=[when.minute,when.hour,when.day,when.month,(when.weekday()+1)%7]
+        days=(values[2] in sets[2],values[4] in sets[4])
+        daymatch=any(days) if not tokens[2].startswith('*') and not tokens[4].startswith('*') else all(days)
+        if values[0] in sets[0] and values[1] in sets[1] and values[3] in sets[3] and daymatch:return stamp
         stamp+=60
     raise ValueError('Cron expression has no run within five years.')
 
@@ -77,6 +80,8 @@ class Budget:
     agents:int=1
     lock:threading.Lock=field(default_factory=threading.Lock)
     cancel:threading.Event=field(default_factory=threading.Event)
+    finished:threading.Event=field(default_factory=threading.Event)
+    expired:bool=False
     def consume(self,kind='call'):
         with self.lock:
             if self.cancel.is_set():raise InterruptedError()
@@ -240,6 +245,16 @@ class Engine:
                 try:self.run(jid,agent,cancel,budget,permissions,checkpoint)
                 finally:
                     with self.lock:self.workers.discard(threading.current_thread())
+            if parent is None:
+                def enforce_deadline():
+                    if budget.finished.wait(budget.limits['seconds']):return
+                    with self.lock:
+                        ids=[key for key in self.active if self.job(key)['root_id']==root]
+                        if not ids:return
+                        budget.expired=True;budget.cancel.set()
+                    if self.cancel_response:
+                        for key in ids:self.cancel_response(key)
+                threading.Thread(target=enforce_deadline,name='deadline-'+jid,daemon=True).start()
             worker=threading.Thread(target=execute,name=jid,daemon=True);self.workers.add(worker);self.active[jid]['thread']=worker;worker.start()
             return jid
     def authorize(self,jid,tool,args,cancel,budget,permission):
@@ -440,13 +455,14 @@ class Engine:
         finally:
             with self.lock:
                 if cancelled() and status!='uncertain':status='cancelled';result='Cancelled. Completed changes remain; inspect action evidence before retrying.'
+                if budget.expired and status!='uncertain':status='failed';result='Shared task runtime budget reached. Active requests were cancelled; completed changes remain. Inspect action evidence before continuing.'
                 self.update(jid,status=status,result=result,steps=steps,usage=usage,finished=time.time())
                 self.pending.pop(jid,None);self.active.pop(jid,None)
             with self.db() as c:c.execute('INSERT INTO agent_messages(agent_id,role,content,provider,created,job_id) VALUES(?,?,?,?,?,?)',(agent['id'],'assistant',result if permission.get('chat') else '[Task '+status+'] '+result,response_provider,time.time(),jid))
             with self.db() as c:c.execute('INSERT INTO agent_notifications VALUES(?,?,?,?,0)',(secrets.token_hex(12),jid,agent['name']+' · '+status,time.time()))
             with self.lock:
                 root=self.job(jid)['root_id']
-                if not any(self.job(k)['root_id']==root for k in self.active):self.budgets.pop(root,None)
+                if not any(self.job(k)['root_id']==root for k in self.active):budget.finished.set();self.budgets.pop(root,None)
     def save_connection(self,body):
         if body.get('confirmed') is not True:raise ValueError('Confirm trust in this MCP server before connecting. It can run code or access connected accounts.')
         mid=identifier(body.get('id') or secrets.token_hex(12));config=body.get('config')

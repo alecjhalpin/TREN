@@ -1,11 +1,23 @@
 # VEYRA testing and acceptance
 
+## Integrated v0.12 candidate
+
+Ordinary local verification: 106 Python tests, two opt-in model/Windows tests skipped; 104 passed. Runtime/desktop Node tests: 12 checks, 10 passed and two Windows checks skipped. Composer DOM logic and syntax checks pass. Run the manifest builder before Python updater tests.
+
+Windows checkpoint [38311670256](https://github.com/alecjhalpin/Veyra/actions/runs/38311670256) passed real Edge navigation/fill/click/extraction, local Whisper/Kokoro round trip, authenticated elevated installation/execution of rimraf 6.0.1 and its glob dependency, revocation, actual Electron capture with a fake microphone, fresh/existing bundled-runtime launch, and NSIS folder/shortcut/profile/login preservation. Review then found dependencies were excluded from the installer by electron-builder's root node_modules filter. The explicit packaging correction and installed-package/native-import/window acceptance must pass a newer candidate run before publication.
+
+Expanded browser checks cover password masking, PNG screenshot, upload/download and cancellation. A bounded worker fixture now turns shutdown hangs into diagnostic failures. Latest source checks also cover blocked-provider runtime cancellation, local inference Stop All, uncertain-workflow pause, descendant mutation resume protection, nested workflows and workspace collision restore.
+
+User-device acceptance after installation remains separate: live GPT account/tool decisions, physical microphone/speakers and latency, one-time interactive UAC worker enrollment, and an actual later one-touch update. An already-elevated CI worker cannot prove the user's UAC prompt; generated speech/fake audio cannot certify their hardware. Phone, wake-word and arbitrary native visual desktop-control acceptance are outside this release.
+
+The older sections below record historical checks and pending items at those versions; they are not the current candidate scope.
+
 ## Current automated baseline
 
 v0.11.1: 84 backend tests and 6 desktop tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
 
 ```sh
-python build_release.py TREN-v0.11.1.zip
+python build_release.py VEYRA-v0.12.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

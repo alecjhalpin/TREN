@@ -176,3 +176,10 @@ class AgentTests(unittest.TestCase):
   self.engine.chat_response=lambda *a:{'text':'','output':[],'calls':[{'name':'pc_files','call_id':'forbidden','arguments':json.dumps({'action':'write','path':str(self.data/'forbidden.txt'),'destination':'','content':'must not execute','pattern':'','limit':10})}]}
   job=self.wait(self.engine.submit('default','Ordinary conversation',chat=True,provider='chatgpt'))
   self.assertEqual(job['status'],'denied');self.assertFalse((self.data/'forbidden.txt').exists())
+
+ def test_runtime_deadline_cancels_blocked_provider_and_records_reason(self):
+  gate=threading.Event();cancelled=[]
+  self.response=lambda *args:(gate.wait(2) and {'text':'Late response','calls':[],'output':[]})
+  self.engine.cancel_response=lambda tag=None:(cancelled.append(tag),gate.set())
+  with patch.object(self.engine,'limits',return_value={**DEFAULT_LIMITS,'seconds':.1}):jid=self.engine.submit('default','Wait for provider')
+  result=self.wait(jid);self.assertEqual(result['status'],'failed');self.assertIn('runtime budget',result['result']);self.assertIn(jid,cancelled)

@@ -1,50 +1,43 @@
-# Integrated release development
+# Integrated v0.12 release acceptance
 
-Approved 2026-10-12. Build one integrated mega-update; do not publish partial feature releases. Published v0.11.1 remains the baseline until full acceptance passes. Phone capability is outside this release.
+Approved 2026-10-12: one integrated mega-update. `mega-update` is the development branch; v0.11.1 stays stable until the candidate implementation and release checks pass. Phone capability and a wake word are outside this release.
 
-## Acceptance matrix
+## Scope and evidence
 
-| Area | Required outcome | Status |
+| Area | Implemented behavior | Verification |
 | --- | --- | --- |
-| Permissions | Whole-PC automatic actions require warned explicit opt-in; review/inspect/off remain; immediate revocation | Pending |
-| Elevated worker | Separate one-time UAC setup, authenticated requests, disable/stop; no system-wide UAC disabling | Pending |
-| Scheduling | Cron and reusable workflows, restart/coalescing, no overlapping/replayed mutations | Pending |
-| Memory | Agent-scoped SQLite CRUD, pinned context, priority/recency, no context leakage | Pending |
-| MCP | Stdio/HTTP initialization, pooled lifecycle, timeout/cancel, tools schemas, explicit connections | Pending |
-| Browser | Playwright isolated profiles, navigation/click/fill/extraction/download/upload, cancellation | Pending |
-| Agents | Isolated missions/workspaces, sub-agent recursion under shared budgets, live durable task evidence | Pending |
-| Workspace | File listing/preview/reference, actual path verification | Pending |
-| Voice/orb | Click mic, local transcription, spoken response, interruption/mute, device selection/calibration | Pending |
-| Activity | Task inbox, notifications, stop-all, runtime/tool/concurrency/depth limits | Pending |
-| Recovery | Checkpoints, inspect partial actions, never replay side effects silently | Pending |
-| Backup | Export/restore settings, workflows, memory; preserve private credentials in place | Pending |
-| Updates | Built-in repository, one download action and restart confirmation; full-package migration | Pending |
-| Install task | Official small app and dependencies, verified execution, unattended elevation, failure/cancel | Pending |
+| Permissions | Whole-PC auto requires warning/checkbox confirmation; review/inspect/off, action-bound review, revocation | Backend/unit checks; real Electron consent checks in candidate CI |
+| Elevation | Authenticated per-user Highest interactive worker after one-time UAC; disable/revoke/parent-lifetime checks | Previous Windows candidate installed pinned rimraf/glob, executed it and verified revocation; user's interactive enrollment is separate |
+| Scheduling | Five-field local/UTC cron, reusable workflows, coalescing, no overlap; failed/uncertain prior runs pause | Real SQLite/unit checks; model-generated recurring-work quality needs user acceptance |
+| Memory | Agent-scoped CRUD, pinned context, priority/recency; GPT Chat memory without PC actions | SQLite/provider fixtures including isolation and Chat/off mode |
+| MCP | Pooled stdio/streamable HTTP, tool discovery/calls, lifecycle/timeout/cancel, protected configs | Real local stdio and HTTP server tests; no claim of every external MCP service/OAuth flow |
+| Browser | Dedicated Edge/Playwright profile, references, navigation/actions, previews, upload/download, cancellation | Earlier Windows navigation/fill/click/extraction passed; expanded acceptance is running |
+| Agents | Independent contexts/workspaces, recursive children under shared budgets, serial workspace access | SQLite/blocked-provider/cancellation/recovery tests |
+| Workspace | Traversal-bound listing, text/image preview and reference | Unit/desktop UI checks; whole-PC agents are not OS sandboxes |
+| Voice/orb | Click mic, Whisper/Kokoro, device/rate selection, noise calibration, mute/interruption | Real generated-speech round trip and Electron fake-device capture passed earlier; physical devices/latency remain user acceptance |
+| Activity | Inbox, notifications, Stop All, provider cancellation, root watchdog and limits | Unit/MCP/desktop checks; selected foreign backends are not silently killed |
+| Recovery | Durable checkpoints, descendant mutation ledger, uncertain-action reporting, explicit continuation | Unit/process tests; arbitrary shell effects cannot promise automatic undo |
+| Backup | Agents/memory/workflows/limits/settings export/restore, paused restore, no credentials/session/elevation keys | SQLite/private-settings/workspace-collision checks |
+| Updates | Built-in repo, one desktop button, download then restart confirmation, manifest-backed backend migration | Backend integrity/rollback checks; final installed package/upgrade acceptance pending |
+| Installer | Bundled Python/Node/browser/voice dependencies, folder/shortcut opt-out, legacy data/profile preservation | Earlier staging/NSIS tests passed; corrected actual dependency packaging must pass final Windows CI |
+| Program install | Small pinned CLI plus dependencies, actual execution and revocation | Real elevated Windows worker installed rimraf 6.0.1 plus glob, removed owned fixture and verified resulting state |
 
-## Source review
+## Current checkpoint
 
-Golemancy inspected at d39b6620414a022b0a0a6707b8861322ea251826 (Apache-2.0). Browser driver wraps agent-browser/Playwright; MCP pooling fingerprints full configuration and permissions; agent-scoped memory is pinned then priority/recency ranked. OS computer-use is not inferred from these browser tools. Any copied utility keeps license and attribution; no private OAuth/backend routes, upstream telemetry or API-key voice flow is adopted.
+The ordinary local suite passes **106 Python tests with two opt-in tests skipped** (104 passed); desktop/runtime Node checks pass 10 with two Windows-only checks skipped. Composer logic and JavaScript syntax checks pass. Manifest generation and the real SQLite upgrade/rollback checks pass. These are implementation checks, not live account/device acceptance.
 
-## Architecture
+Remote checkpoint `6043520ae8abd58c63bc7a6442f5658f68e22ca9` passed Windows run [38311670256](https://github.com/alecjhalpin/Veyra/actions/runs/38311670256), including real Edge actions, Whisper/Kokoro round trip, authenticated elevated program installation, fake-device audio capture, fresh/existing desktop launch and installer options/profile preservation.
 
-Keep Python/SQLite core and official GPT plan-sharing. Add a bounded multi-agent/workflow engine, a pooled Node tool worker (Playwright/MCP/local Whisper), voice UI with Windows speech synthesis, and an explicitly installed elevated worker for unattended admin commands. Desktop packaging supplies dependency setup and coordinated backend upgrade. Separate agent contexts and browser profiles; inherited tool permissions cannot exceed a parent's; shared root budgets cover recursive children. Model-reported usage is distinguished from unavailable quota information.
+Review afterward found electron-builder's root `node_modules` exclusion. Explicit resource mappings now include tool dependencies and bundled npm; installed-package checks must verify native imports and actual window launch. The expanded Edge fixture also required bounded worker shutdown/diagnostics. Recovery checkpoint `427b475` passed Linux validation; its stalled Windows fixture was cancelled for corrected run `38319199037`. Latest candidate acceptance remains in progress; do not infer success from a timer or a previous source SHA.
 
-## Checkpoint: implementation and verification in progress
+## Architecture and upstream reuse
 
-The working branch implements the SQLite agent/workflow engine, permission snapshots and action-bound approvals, scoped memory, checkpoints and shared budgets, MCP transports, Playwright tools, local Whisper/Kokoro voice wiring, orb/workbench UI, and elevated-worker setup. These are source implementations, not a completed release.
+Keep Python/SQLite, existing eligible-plan GPT sharing, optional Ollama and project-scoped Codex. Add a private pooled Node process for Playwright/MCP/local inference, a bounded durable agent/workflow engine, voice workbench and a separately enrolled elevated worker. Children cannot exceed parent tool permissions; root budgets cover the complete tree. Preserve original data/auth/projects and legacy internal identities.
 
-Verified locally: 93 Python tests (including 9 agent-runtime tests), 6 desktop regression tests, and 3 real MCP/snapshot tests. Backend archive generation now includes the new modules and runtime manifests. The full packaged Windows upgrade, microphone/voice models, Edge UI integration, and elevated unattended installation acceptance remain pending. The local Chromium download failed; Windows CI uses Edge. No mega-update release is published.
+Golemancy inspected at `d39b6620414a022b0a0a6707b8861322ea251826` (Apache-2.0). The small accessibility snapshot formatter is adapted with attribution in `vendor/golemancy`; its backend/provider/telemetry code is not incorporated. Browser automation does not imply arbitrary native visual computer use.
 
-Additional verification: real local Kokoro generated 190,844-byte WAV output at 24 kHz; Whisper correctly transcribed the generated greeting. Automated model acceptance now covers this round trip. Two more agent tests verify recursive descendant cancellation and portable-settings/limits restore without exporting credentials. The full ordinary test run passes 97 tests with two opt-in Windows/model acceptance checks skipped. Windows Edge caught an ESM absolute-path import defect, fixed by converting resolved dependency paths to file URLs; its rerun remains pending. CPU voice runtime pins patched sharp 0.35.5. npm still reports sprintf-js through the ONNX postinstall proxy/logging helper; postinstall scripts are disabled and that helper is not called by the runtime. Track this upstream dependency before release.
+## Release gate
 
-## v0.12.0 candidate validation
+Publish only after candidate source checks, real Windows runtime/voice/browser tests, actual packaged-dependency checks, fresh/upgrade/installer preservation, and reviewed UI captures pass. Update README/current feature list and the single changelog, plus private continuity references. A branch push cannot publish; the release job is main-only and depends on validation and desktop acceptance.
 
-Development branch: `mega-update`. Do not publish partial feature releases or overwrite the v0.11.1 release assets.
-
-Checkpoint 6043520ae8abd58c63bc7a6442f5658f68e22ca9 passed Windows run 38311670256: real Edge navigation/fill/click/extraction, real Whisper/Kokoro speech round trip, an authenticated elevated-worker installation and execution of pinned rimraf plus its glob dependency, revocation, audio capture, desktop launch, and installer folder/shortcut/profile preservation. This proves staged/runtime functionality; it does not prove a user's live GPT account or interactive UAC enrollment.
-
-Packaging review then found electron-builder's root node_modules exclusion. The candidate now maps both tool-runtime dependencies and bundled npm explicitly and checks the installed package, including its actual window launch. These final package checks are pending until the new candidate CI run passes.
-
-Additional candidate safeguards: uncertain/failed schedules pause before another attempt; resumed trees block exact mutations from descendant jobs; nested workflows serialize in their configured workspace; restored agents cannot share a workspace accidentally; new composer drafts survive submission and voice transcription; ordinary refreshes preserve conversation scroll/evidence. Model-download markers allow the next worker to discard incomplete downloads after a forced stop. No wake word and no phone-app development are included.
-
-The local execution service disconnected during final consolidation. Changes are being saved through the GitHub API and verified by the existing Linux/Windows CI pipeline. The source on this branch and its recorded checks remain authoritative; uncommitted local experiments must not be treated as released functionality.
+After installation, separately confirm the real GPT account, physical microphone/speakers, interactive UAC enrollment, and a daily-use workflow. CI uses synthetic identity/layout fixtures and an already-elevated disposable runner; label those limits clearly. Keep 0.12 rather than claiming v1.0 maturity from feature count.

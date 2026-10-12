@@ -70,6 +70,9 @@ Assert (Test-Path (Join-Path $program 'TREN.exe')) 'Branded install folder missi
 foreach ($module in @('playwright','kokoro-js','@huggingface/transformers','onnxruntime-node')) { Assert (Test-Path (Join-Path $program ('resources/tool-runtime/node_modules/'+$module+'/package.json'))) ('Packaged tool dependency missing: '+$module) }
 Assert (Test-Path (Join-Path $program 'resources/node/node_modules/npm/bin/npm-cli.js')) 'Packaged npm missing'
 Assert (Test-Path (Join-Path $program 'resources/backend/runtime/worker.mjs')) 'Packaged worker missing'
+$env:VEYRA_TOOLS_ROOT = Join-Path $program 'resources/tool-runtime'
+& (Join-Path $program 'resources/node/node.exe') --input-type=module -e "import {createRequire} from 'node:module';import {pathToFileURL} from 'node:url';const r=createRequire(process.env.VEYRA_TOOLS_ROOT+'/package.json');for(const n of ['playwright','onnxruntime-node','kokoro-js','@huggingface/transformers']){const m=await import(pathToFileURL(r.resolve(n)).href);if(!m)throw Error('Missing packaged module '+n)};console.log('Installed browser and native voice modules load successfully.')"
+Assert ($LASTEXITCODE -eq 0) 'Installed native tool dependencies did not load'
 Assert (-not (Test-Path $link)) 'Unchecked desktop shortcut was created'
 # Silent updates preserve opt-out. Manual reinstalls can create/repair the shortcut.
 SilentInstall @('/S','--updated')

@@ -2,9 +2,9 @@
 
 ## Unreleased — integrated mega-update (in development)
 
-Source now includes scoped agents and SQLite memory, cron workflows, shared recursion budgets, review/automatic permission handling, durable task evidence and recovery, pooled MCP and Playwright tools, local Whisper/Kokoro voice with an orb, workspace preview, portable backup/restore, an optional elevated worker and a unified desktop update path. These features are undergoing integrated acceptance; they are not a published release.
+Source now includes scoped agents and SQLite memory, cron workflows, shared recursion budgets, review/automatic permission handling, durable task evidence and recovery, pooled MCP and Playwright tools, local Whisper/Kokoro voice with an orb, workspace preview, portable backup/restore, an optional elevated worker and a unified desktop update path. Adds microphone noise calibration, live provider cancellation/runtime enforcement, paused uncertain schedules, descendant mutation replay protection and nested workflow serialization. These features are undergoing integrated acceptance; they are not a published release.
 
-Verified locally: 95 ordinary automated tests pass, plus the real speech generation/transcription round trip. Windows Edge, packaged UI/microphone, unattended program installation and installer upgrade checks are being run on the development branch. See `docs/DEVELOPMENT.md` for the acceptance matrix and limitations.
+Verified locally: 104 ordinary Python tests pass (106 including two skipped opt-in checks), 10 desktop/runtime Node tests pass with two Windows-only skips, and composer/syntax checks pass. Earlier Windows acceptance verified Edge actions, Whisper/Kokoro round trip, elevated rimraf/glob installation and execution, audio capture, and installer/profile preservation. Final packaged-dependency and expanded browser acceptance are running on the development branch. See `docs/DEVELOPMENT.md` for the acceptance matrix and limitations.
 
 ## 0.11.1 — 2026-10-12
 

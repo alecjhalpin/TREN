@@ -91,12 +91,35 @@ def init():
     return code_path.read_text(encoding='utf-8').strip()
 
 
+OLLAMA_REQUESTS = {}
+OLLAMA_REQUEST_LOCK = threading.RLock()
+
+def cancel_provider_requests(tag=None):
+    if GPT:GPT.cancel_requests(tag)
+    with OLLAMA_REQUEST_LOCK:responses=[r for r,name in OLLAMA_REQUESTS.items() if tag is None or name==tag]
+    for response in responses:
+        response.veyra_cancelled=True
+        try:
+            sock=getattr(getattr(getattr(response,'fp',None),'raw',None),'_sock',None)
+            if sock:sock.shutdown(socket.SHUT_RDWR)
+            response.close()
+        except OSError:pass
+
 def ollama_request(path, body=None, timeout=5):
     request = urllib.request.Request(OLLAMA + path, data=None if body is None else json.dumps(body).encode(),
                                     headers={'Content-Type': 'application/json'})
     # Ignore system proxies: local inference must remain local.
     with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(request, timeout=timeout) as r:
-        return json.load(r)
+        with OLLAMA_REQUEST_LOCK:OLLAMA_REQUESTS[r]=threading.current_thread().name
+        try:
+            result=json.load(r)
+            if getattr(r,'veyra_cancelled',False):raise InterruptedError('Local inference cancelled.')
+            return result
+        except Exception:
+            if getattr(r,'veyra_cancelled',False):raise InterruptedError('Local inference cancelled.') from None
+            raise
+        finally:
+            with OLLAMA_REQUEST_LOCK:OLLAMA_REQUESTS.pop(r,None)
 
 
 def setting(key, default='0'):
@@ -227,6 +250,7 @@ def pc_response(messages,instructions,tools):
 def generate(messages):
     with GENERATION_LOCK:
         try:
+            if ENGINE and ENGINE.setting('paused',0):raise InterruptedError('Execution is paused.')
             history = [{'role': 'system', 'content': system_prompt()}] + messages
             sources = []
             used = 0
@@ -960,7 +984,7 @@ def main():
     GPT = ChatGPT(DATA, lambda: set_setting('chat_backend', 'chatgpt'))
     PC = codex_tasks.PCManager(db,DATA,pc_response,pc_context,use_web_tool,
                              lambda: setting('pc_agent_mode','review'))
-    ENGINE = agent_runtime.Engine(db,DATA,pc_response,lambda:setting('pc_agent_mode','review'),use_web_tool,broker=admin_broker.Broker(DATA),gaming=lambda:setting('gaming')=='1',stream_response=agent_response_stream,chat_response=agent_chat_response,cancel_response=GPT.cancel_requests)
+    ENGINE = agent_runtime.Engine(db,DATA,pc_response,lambda:setting('pc_agent_mode','review'),use_web_tool,broker=admin_broker.Broker(DATA),gaming=lambda:setting('gaming')=='1',stream_response=agent_response_stream,chat_response=agent_chat_response,cancel_response=cancel_provider_requests)
     ENGINE.save_agent({'id':'default','name':setting('assistant_name','Nova')})
     ENGINE.start()
     UPDATER = update_runtime.Manager(ROOT, DATA, setting, set_setting)
