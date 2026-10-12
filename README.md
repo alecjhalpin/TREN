@@ -60,7 +60,7 @@ Install the new complete desktop package over your existing installation. It upg
 
 ### Source/browser setup
 
-The release ZIP and setup.bat remain available for manual/source installations. Python 3.11+ is required for this route; setup.bat installs missing Python/Ollama and downloads the default model. Do not rerun setup.bat to update an existing installation. The default local model is qwen3:8b.
+The release ZIP and setup.bat remain available for manual/source installations. Python 3.11+ is required for this route; Node 24 and `npm --prefix runtime ci --ignore-scripts` are also needed for MCP/browser/voice tools (Windows voice additionally needs the Microsoft C++ runtime); setup.bat installs missing Python/Ollama and downloads the default model. Do not rerun setup.bat to update an existing installation. The default local model is qwen3:8b.
 
 ## Updating VEYRA
 

@@ -50,3 +50,25 @@ for platform in ('linux','darwin'):shutil.rmtree(onnx/platform,ignore_errors=Tru
 shutil.rmtree(onnx/'win32'/'arm64',ignore_errors=True)
 for cuda in (onnx/'win32'/'x64').glob('*cuda*'):cuda.unlink()
 print('Staged locked Windows browser/voice dependencies and bundled npm.')
+
+# Deploy Microsoft redistributable CRT files app-locally for native voice.
+# Use the licensed VS REDIST directory, never arbitrary System32 copies.
+import os
+vswhere=Path(os.environ.get('ProgramFiles(x86)','C:/Program Files (x86)'))/'Microsoft Visual Studio/Installer/vswhere.exe'
+installation=subprocess.check_output([str(vswhere),'-latest','-products','*','-property','installationPath'],text=True).strip()
+folders=list((Path(installation)/'VC/Redist/MSVC').glob('*/x64/Microsoft.VC*.CRT'))
+if not folders:raise ValueError('A licensed x64 Visual C++ REDIST directory is required to package native voice.')
+crt=max(folders,key=lambda p:tuple(int(v) for v in p.parents[1].name.split('.') if v.isdigit()))
+required={'msvcp140.dll','msvcp140_1.dll','vcruntime140.dll','vcruntime140_1.dll'}
+files=list(crt.glob('*.dll'))
+if not required.issubset({p.name.lower() for p in files}):raise ValueError('Visual C++ runtime source is incomplete.')
+records=[]
+for file in files:
+    literal="'"+str(file).replace("'","''")+"'"
+    script="$s=Get-AuthenticodeSignature "+literal+"; if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation'){throw 'Untrusted Visual C++ runtime file'}"
+    subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',script],check=True)
+    shutil.copy2(file,DEST/'node'/file.name)
+    records.append({'file':file.name,'sha256':hashlib.sha256(file.read_bytes()).hexdigest()})
+(DEST/'node'/'veyra-crt-provenance.json').write_text(json.dumps({'publisher':'Microsoft Corporation','source':'Visual Studio licensed REDIST/MSVC x64 CRT','version':crt.parents[1].name,'files':records},indent=2))
+(DEST/'node'/'Microsoft-CRT-NOTICE.txt').write_text('Microsoft Visual C++ Runtime. Copyright Microsoft Corporation. Redistributable runtime files are deployed app-locally from the Visual Studio REDIST directory. Redistribution information: https://learn.microsoft.com/visualstudio/releases/2022/redistribution and https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files . These files retain their Microsoft signatures and are not licensed under VEYRA or Golemancy notices.\n')
+print('Staged Microsoft-signed x64 C++ runtime app-locally; no system runtime replacement.')
