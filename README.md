@@ -35,7 +35,7 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 - **Visible recommendations:** TREN shows the chosen mode and a short reason. Manual mode choices bypass Auto; Codex still opens the task-review dialog before starting work.
 - **Chat stays chat:** greetings, thanks, advice and planning can use ordinary conversation without creating a PC job.
 
-**Verification:** live drive inspection is user-confirmed. Routing control flow is tested with synthetic GPT decisions; live classification quality and latency remain to be verified. Auto routing uses an additional ChatGPT request and plan usage. With Ollama selected as preferred provider, Auto uses local conversation; PC/Codex remain available manually.
+**Verification:** live drive inspection is user-confirmed. Routing control flow is tested with synthetic GPT decisions; basic Auto routing is now user-confirmed; broader classification quality and latency still need evaluation. Auto routing uses an additional ChatGPT request and plan usage. With Ollama selected as preferred provider, Auto uses local conversation; PC/Codex remain available manually.
 
 ## Getting started
 
@@ -65,7 +65,11 @@ If an update fails its startup check, inspect `data/updates/restart.log` in the 
 
 Desktop launch without a terminal, private iPhone access, voice, and an animated orb interface are planned. Visual desktop/browser automation is also future work. TREN currently uses a browser interface; these plans are not delivered desktop or iPhone apps.
 
-[Roadmap and v1.0 criteria](ROADMAP.md) · [Private phone setup](PHONE-SETUP.md) · [ChatGPT integration details](README-v0.6.md)
+[Roadmap and v1.0 criteria](ROADMAP.md) · [Private phone setup](PHONE-SETUP.md) · [ChatGPT integration details](https://github.com/alecjhalpin/TREN/blob/main/docs/TECHNICAL.md)
+
+## Documentation
+
+[Setup and updates](#getting-started) · [Phone setup](PHONE-SETUP.md) · [Technical guide](https://github.com/alecjhalpin/TREN/blob/main/docs/TECHNICAL.md) · [Testing and acceptance](https://github.com/alecjhalpin/TREN/blob/main/docs/TESTING.md) · [Changelog](CHANGELOG.md)
 
 ## Development
 
@@ -82,7 +86,7 @@ Build first to generate the release manifest needed by updater tests. Backend te
 <details>
 <summary>Release conventions and repository hygiene</summary>
 
-Main pushes and manual workflow runs build, validate and test the release. A version is published only if it does not already exist; existing release assets are never overwritten. For each new release, increment `version.json` and replace the “What's new” section with that release's added features. Preserve older history in versioned documentation.
+Main pushes and manual workflow runs build, validate and test the release. A version is published only if it does not already exist; existing release assets are never overwritten. For each new release, increment `version.json` and replace the “What's new” section with that release's added features. Append older history to CHANGELOG.md; do not add per-version README or changelog files.
 
 Never commit `data/`, backups, `allowed-hosts.txt`, credentials, pairing secrets, logs or personal project notes. Keep 0.x versions while reliability and capabilities mature; [ROADMAP.md](ROADMAP.md) defines v1.0 readiness.
 

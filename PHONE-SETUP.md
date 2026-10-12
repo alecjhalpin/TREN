@@ -3,7 +3,7 @@
 First get chat working on your PC with setup.bat and start.bat.
 
 1. Install **Tailscale** on Windows: https://tailscale.com/download/windows
-2. Install the Tailscale iPhone app from the App Store. Sign into the **same Tailscale account** on PC and phone. Enable its VPN connection on the phone. The Personal plan is free for personal use; choose that plan rather than a business trial.
+2. Install the Tailscale iPhone app from the App Store. Sign into the **same Tailscale account** on PC and phone. Enable its VPN connection on the phone. Review the available personal plan during setup.
 3. On the PC, open PowerShell and run:
 
    ```powershell
@@ -34,4 +34,4 @@ tailscale serve reset
 
 This resets the PC’s Serve configuration, including any other Serve routes you may have configured. If you already use Serve for other apps, review `tailscale serve status` before changing the configuration above.
 
-Phone push notifications and voice calls are future features; v0.1 displays task results in Activity when you open the app.
+Native phone packaging, push notifications and voice are future features. The browser interface shows results when opened; private phone acceptance remains pending.
