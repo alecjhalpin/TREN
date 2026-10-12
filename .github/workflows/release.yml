@@ -6,8 +6,8 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: tren-release
-  cancel-in-progress: true
+  group: veyra-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -108,6 +108,7 @@ jobs:
           if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item smoke-output/VEYRA-Installer-options.png release-out/
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: desktop
           path: desktop/release-out/*

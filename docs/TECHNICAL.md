@@ -80,7 +80,7 @@ Release validation bounds ZIP size to 16 MiB, expanded size to 64 MiB and entrie
 
 Install/restart requires explicit confirmation and blocks active work. The trusted current updater supervisor waits for shutdown, backs up code and snapshots SQLite, installs validated files, relaunches and checks the versioned HTTP server response. Failed startup attempts restore previous code and relaunch. Settings can restore the previous in-app update; bootstrap upgrade prints its rollback command. Ordinary rollback preserves current data, pairing, hosts and projects. Database snapshots and restart logs are private and may contain pairing information; keep them local.
 
-Old installations need the one-time upgrade.bat bootstrap described in the main README. Never rerun setup merely to update an installation. Native desktop packaging, phone packaging, voice and visual automation remain roadmap work.
+Old installations need the one-time upgrade.bat bootstrap described in the main README. Never rerun setup merely to update an installation. Desktop packaging, local voice/orb and Playwright browser tools are implemented in the v0.12 candidate. Phone and arbitrary native visual desktop control remain future work.
 
 ## References
 
@@ -99,7 +99,7 @@ Assistant profile names and setup completion are SQLite settings. Existing users
 
 ## Brand transition — v0.11.0
 
-Public product name: VEYRA (formerly TREN). Assistant identity is stored separately in SQLite. New fallback name: Nova; completed returning profiles without a saved name are assigned their historic TREN name using INSERT OR IGNORE. Saved custom names are never replaced. Backend desktop application identifier remains TREN for compatibility; public OAuth consent hints/sign-in text use VEYRA. Internal environment variables, controller headers, repo/appId/package/executable identities and release ZIP naming remain unchanged. Frontend welcome art is embedded so older strict release allowlists still receive it without new backend asset routes. Desktop icon and GitHub hero assets live in the repository; desktop packaging includes its icon.
+Public product name: VEYRA (formerly TREN). Assistant identity is stored separately in SQLite. New fallback name: Nova; completed returning profiles without a saved name are assigned their historic TREN name using INSERT OR IGNORE. Saved custom names are never replaced. Backend desktop application identifier remains TREN for compatibility; public OAuth consent hints/sign-in text use VEYRA. Legacy internal environment variables, controller headers, appId/package/executable identities and stored profiles remain compatible. The public repository is alecjhalpin/Veyra; current backend release assets use VEYRA-vVERSION.zip. Frontend welcome art is embedded so older strict release allowlists still receive it without new backend asset routes. Desktop icon and GitHub hero assets live in the repository; desktop packaging includes its icon.
 
 ## Integrated agent runtime
 
@@ -112,3 +112,7 @@ Cron workflows use local time or UTC, coalesce missed runs and avoid overlap. A 
 Automatic PC mode requires explicit warning/confirmation; a separately enrolled per-user Highest interactive Task Scheduler worker handles approved unattended administrator requests after one-time UAC. Requests/results are authenticated, expire, and remain tied to the requesting process identity. Stop All pauses new execution/schedules and cancels providers, tools and owned subprocesses. Windows must remain awake and signed in.
 
 Portable backups include agents, memory, workflows, budgets and selected settings. Credentials, browser sessions and elevation keys are excluded. Restore leaves execution paused, schedules disabled and access in review; reconnect MCP separately. The complete desktop updater has a built-in release source; backend manifests/backups preserve data during startup migration.
+
+## Dependency maintenance
+
+Pinned runtime: Playwright 1.64.0, Transformers.js 3.8.1, Kokoro.js 1.2.1, sharp override 0.35.5. Models use local CPU inference. npm scripts are disabled when staging these runtime dependencies. The current audit reports six moderate transitive entries through sprintf-js 1.1.3 → roarr/global-agent → the ONNX postinstall helper; the helper is not called by the inference worker and its install script is disabled. There is no patched sprintf-js release available at this checkpoint. Do not apply npm audit --force major upgrades without testing model/runtime compatibility. Preserve dependency licenses and Golemancy attribution in packaged resources.

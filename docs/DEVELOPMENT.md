@@ -24,7 +24,7 @@ Approved 2026-10-12: one integrated mega-update. `mega-update` is the developmen
 
 ## Current checkpoint
 
-The ordinary local suite passes **106 Python tests with two opt-in tests skipped** (104 passed); desktop/runtime Node checks pass 10 with two Windows-only checks skipped. Composer logic and JavaScript syntax checks pass. Manifest generation and the real SQLite upgrade/rollback checks pass. These are implementation checks, not live account/device acceptance.
+The ordinary local suite passes **107 Python tests with three opt-in tests skipped** (104 passed); desktop/runtime Node checks pass 10 with two Windows-only checks skipped. Composer logic and JavaScript syntax checks pass. Manifest generation and the real SQLite upgrade/rollback checks pass. These are implementation checks, not live account/device acceptance.
 
 Remote checkpoint `6043520ae8abd58c63bc7a6442f5658f68e22ca9` passed Windows run [38311670256](https://github.com/alecjhalpin/Veyra/actions/runs/38311670256), including real Edge actions, Whisper/Kokoro round trip, authenticated elevated program installation, fake-device audio capture, fresh/existing desktop launch and installer options/profile preservation.
 

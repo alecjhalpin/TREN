@@ -13,6 +13,7 @@ New-Item -ItemType Directory -Force (Split-Path $marker) | Out-Null
 Set-Content $marker 'keep-profile-and-assistant-data'
 function Assert($condition, $message) { if (-not $condition) { throw $message } }
 function SilentInstall([string[]]$flags) {
+  Write-Output ('Running silent installer: '+($flags -join ' '))
   $p = Start-Process $setup -ArgumentList $flags -PassThru
   Assert ($p.WaitForExit(120000)) 'Installer timed out'
   Assert ($p.ExitCode -eq 0) "Installer exit code $($p.ExitCode)"
@@ -66,6 +67,8 @@ while ([DateTime]::UtcNow -lt $end) {
   Start-Sleep -Milliseconds 500
 }
 Assert $finished 'Interactive install did not finish'
+Assert ($process.WaitForExit(120000)) 'Interactive installer process did not exit after Finish'
+Assert ($process.ExitCode -eq 0) 'Interactive installer exit was unsuccessful'
 Assert (Test-Path (Join-Path $program 'TREN.exe')) 'Branded install folder missing app'
 foreach ($module in @('playwright','kokoro-js','@huggingface/transformers','onnxruntime-node')) { Assert (Test-Path (Join-Path $program ('resources/tool-runtime/node_modules/'+$module+'/package.json'))) ('Packaged tool dependency missing: '+$module) }
 Assert (Test-Path (Join-Path $program 'resources/node/node_modules/npm/bin/npm-cli.js')) 'Packaged npm missing'
@@ -73,6 +76,8 @@ Assert (Test-Path (Join-Path $program 'resources/backend/runtime/worker.mjs')) '
 $env:VEYRA_TOOLS_ROOT = Join-Path $program 'resources/tool-runtime'
 & (Join-Path $program 'resources/node/node.exe') --input-type=module -e "import {createRequire} from 'node:module';import {pathToFileURL} from 'node:url';const r=createRequire(process.env.VEYRA_TOOLS_ROOT+'/package.json');for(const n of ['playwright','onnxruntime-node','kokoro-js','@huggingface/transformers']){const m=await import(pathToFileURL(r.resolve(n)).href);if(!m)throw Error('Missing packaged module '+n)};console.log('Installed browser and native voice modules load successfully.')"
 Assert ($LASTEXITCODE -eq 0) 'Installed native tool dependencies did not load'
+& (Join-Path $program 'resources/node/node.exe') (Join-Path $program 'resources/node/node_modules/npm/bin/npm-cli.js') --version
+Assert ($LASTEXITCODE -eq 0) 'Installed npm and its dependencies did not execute'
 Assert (-not (Test-Path $link)) 'Unchecked desktop shortcut was created'
 # Silent updates preserve opt-out. Manual reinstalls can create/repair the shortcut.
 SilentInstall @('/S','--updated')

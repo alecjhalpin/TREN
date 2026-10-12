@@ -2,7 +2,7 @@
 
 ## Integrated v0.12 candidate
 
-Ordinary local verification: 106 Python tests, two opt-in model/Windows tests skipped; 104 passed. Runtime/desktop Node tests: 12 checks, 10 passed and two Windows checks skipped. Composer DOM logic and syntax checks pass. Run the manifest builder before Python updater tests.
+Ordinary local verification: 107 Python tests, three opt-in model/Windows tests skipped; 104 passed. Runtime/desktop Node tests: 12 checks, 10 passed and two Windows checks skipped. Composer DOM logic and syntax checks pass. Run the manifest builder before Python updater tests.
 
 Windows checkpoint [38311670256](https://github.com/alecjhalpin/Veyra/actions/runs/38311670256) passed real Edge navigation/fill/click/extraction, local Whisper/Kokoro round trip, authenticated elevated installation/execution of rimraf 6.0.1 and its glob dependency, revocation, actual Electron capture with a fake microphone, fresh/existing bundled-runtime launch, and NSIS folder/shortcut/profile/login preservation. Review then found dependencies were excluded from the installer by electron-builder's root node_modules filter. The explicit packaging correction and installed-package/native-import/window acceptance must pass a newer candidate run before publication.
 
