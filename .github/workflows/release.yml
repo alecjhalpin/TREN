@@ -7,7 +7,7 @@ permissions:
   contents: write
 concurrency:
   group: tren-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -40,6 +40,7 @@ jobs:
   desktop:
     needs: validate
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,6 +52,7 @@ jobs:
       - name: Stage first-install backend and runtimes
         run: python desktop/prepare-resources.py
       - name: Real Edge browser automation
+        timeout-minutes: 4
         working-directory: runtime
         env:
           VEYRA_TOOLS_ROOT: ${{ github.workspace }}/desktop/resources/tool-runtime
