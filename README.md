@@ -29,13 +29,12 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside TREN, back up app files and restart while preserving your data. |
 
-## What's new in v0.8.1
+## What's new in v0.8.2
 
-- **Windows startup protection:** exclusively reserve TREN's port to prevent overlapping app listeners.
-- **Explicit ChatGPT mode:** choosing ChatGPT now uses regular conversation; Auto and PC Agent retain PC-tool routing.
-- **Clearer PC-agent failures:** distinguish a stream ending early, invalid tool calls, empty completed responses, network failures and response-format errors.
+- **Streamed tool responses:** retain completed output items and reasoning from the stream when the final completion does not repeat them. Tool calls still require a successfully completed response.
+- **Clearer Auto mode:** the selector says “Auto · chat + PC tools”; completed responses without tool actions appear as ChatGPT conversation.
 
-**Verification:** ordinary GPT conversation and recovery from duplicate TREN processes are user-confirmed. The live PC-agent response failure remains under investigation; this release improves diagnosis, without claiming that storage/tool execution is fixed. See [PC-agent details](README-v0.8.md).
+**Verification:** ordinary conversation works on the user's Windows installation. The parser fix passes synthetic streaming regressions; live storage/tool-call acceptance remains pending. Auto uses GPT with available PC tools, while explicit ChatGPT and Chat modes use regular conversation.
 
 ## Getting started
 
@@ -72,7 +71,7 @@ Desktop launch without a terminal, private iPhone access, voice, and an animated
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.8.1.zip
+python build_release.py TREN-v0.8.2.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

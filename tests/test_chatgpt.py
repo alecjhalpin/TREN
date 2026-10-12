@@ -244,6 +244,23 @@ class SignatureTests(unittest.TestCase):
                 p.read_stream(io.BytesIO(raw), structured=True)
             self.assertEqual(failure.exception.code, code)
 
+    def test_streamed_completed_tool_items_survive_empty_terminal_output(self):
+        import io
+        output = [
+            {'type':'reasoning','id':'r','encrypted_content':'synthetic-complete'},
+            {'type':'function_call','namespace':'tren','name':'pc_info','call_id':'c','arguments':'{"section":"storage"}'},
+        ]
+        events = [{'type':'response.output_item.done','output_index':i,'item':item} for i,item in enumerate(output)]
+        terminal = {'type':'response.completed','response':{'status':'completed','output':[]}}
+        encode = lambda es: io.BytesIO(''.join('data: '+json.dumps(e)+'\n\n' for e in es).encode())
+        result = p.read_stream(encode(events+[terminal]), structured=True)
+        self.assertEqual(result['output'], output)
+        self.assertEqual(result['calls'], [output[1]])
+        # A done item alone or a late failure must never authorize a call.
+        for tail in ([], [{'type':'response.failed','response':{'error':{'code':'subscription_sharing_usage_limit_exceeded'}}}]):
+            with self.assertRaises(p.ChatGPTError):
+                p.read_stream(encode(events+tail), structured=True)
+
     def test_real_node_rsa_signature_and_tampering(self):
         script = """const c=require('node:crypto');const {privateKey,publicKey}=c.generateKeyPairSync('rsa',{modulusLength:2048});const h=Buffer.from(JSON.stringify({alg:'RS256'})).toString('base64url');const b=Buffer.from(JSON.stringify({sub:'synthetic'})).toString('base64url');const text=h+'.'+b;console.log(JSON.stringify({token:text+'.'+c.sign('RSA-SHA256',Buffer.from(text),privateKey).toString('base64url'),key:publicKey.export({format:'jwk'})}));"""
         fixture = json.loads(subprocess.check_output(['node', '-e', script], text=True))

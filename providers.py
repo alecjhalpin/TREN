@@ -132,6 +132,7 @@ def verify_signature(token, key):
 def read_stream(response, structured=False):
     """SSE is successful only after response.completed, including late failures."""
     chunks, event_lines, total = [], [], 0
+    completed_items = {}
     deadline = time.monotonic() + 180
     while True:
         if time.monotonic() > deadline:
@@ -158,15 +159,28 @@ def read_stream(response, structured=False):
                 if not isinstance(delta, str):
                     raise ChatGPTError('incomplete_response')
                 chunks.append(delta)
+            elif kind == 'response.output_item.done':
+                index, item = event.get('output_index'), event.get('item')
+                if type(index) is not int or not 0 <= index < 1000 or not isinstance(item, dict):
+                    raise ChatGPTError('response_format_error')
+                if index in completed_items and completed_items[index] != item:
+                    raise ChatGPTError('response_format_error')
+                completed_items[index] = item
             elif kind in ('response.failed', 'response.incomplete', 'error'):
                 raise provider_error(event.get('response', event))
             elif kind == 'response.completed':
                 complete = event.get('response', {})
                 if complete.get('status') != 'completed':
                     raise ChatGPTError('incomplete_response')
-                # Completed output is authoritative; deltas are only a backup.
+                # Final output is authoritative when present. Some streams put
+                # completed items in output_item.done rather than repeating them.
+                items = complete.get('output', [])
+                if not isinstance(items, list) or any(not isinstance(i, dict) for i in items):
+                    raise ChatGPTError('response_format_error')
+                if not items:
+                    items = [completed_items[i] for i in sorted(completed_items)]
                 output = []
-                for item in complete.get('output', []):
+                for item in items:
                     if item.get('type') == 'message':
                         for part in item.get('content', []):
                             if part.get('type') == 'output_text':
@@ -175,9 +189,6 @@ def read_stream(response, structured=False):
                                 output.append(part.get('refusal', ''))
                 text = ''.join(output or chunks).strip()
                 if structured:
-                    items = complete.get('output', [])
-                    if not isinstance(items, list):
-                        raise ChatGPTError('incomplete_response')
                     calls = [item for item in items if item.get('type') == 'function_call']
                     for call in calls:
                         if not all(isinstance(call.get(k), str) and call[k] for k in ('call_id', 'name', 'arguments')) or len(call['arguments']) > 40000:
