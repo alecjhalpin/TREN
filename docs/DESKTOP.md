@@ -33,3 +33,7 @@ A mismatched/older server on the port is not silently adopted. Update the intend
 The renderer has no Node integration or preload bridge, uses context isolation and Chromium sandboxing, and denies browser permissions. External HTTP(S) links open in the normal browser; other schemes and foreign in-window navigation are blocked. GPT sign-in still uses the system browser and the existing protected connection.
 
 This milestone is a desktop companion around the existing backend. It is not a bundled fresh-install Python/model distribution, native iPhone app, voice client, visual computer-use driver or animated orb. Local Windows acceptance and CI smoke/build evidence are listed in TESTING.md.
+
+## Verified build and previews
+
+The Windows smoke test and installer build passed in [the release workflow](https://github.com/alecjhalpin/TREN/actions/runs/38248472618). The actual captured window layouts were reviewed: [Light](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-light.png) / [Dark](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-dark.png). The preview conversations are synthetic layout fixtures. Local installed-app acceptance remains separate.
