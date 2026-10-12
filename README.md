@@ -29,13 +29,13 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside TREN, back up app files and restart while preserving your data. |
 
-## What's new in v0.8.3
+## What's new in v0.8.4
 
-- **Conversation layout:** PC tasks use separate user bubbles and clean assistant replies, with action details collapsed beneath the response.
-- **Readable responses:** render bold text, links, lists, headings and fenced code using safe DOM elements.
-- **Less clutter:** routine completion labels and timestamps are removed from PC replies; active, failed and approval states remain visible.
+- **GPT chooses Auto's mode:** a tool-free routing request selects conversation, PC Agent, Codex build or Codex review from the request and recent chat.
+- **Visible recommendations:** TREN shows the chosen mode and a short reason. Manual mode choices bypass Auto; Codex still opens the task-review dialog before starting work.
+- **Chat stays chat:** greetings, thanks, advice and planning can use ordinary conversation without creating a PC job.
 
-**Verification:** the user confirmed correct live drive-storage results in v0.8.2. UI logic and backend regression checks cover this release; visual Windows/browser acceptance of the new layout remains pending.
+**Verification:** live drive inspection is user-confirmed. Routing control flow is tested with synthetic GPT decisions; live classification quality and latency remain to be verified. Auto routing uses an additional ChatGPT request and plan usage. With Ollama selected as preferred provider, Auto uses local conversation; PC/Codex remain available manually.
 
 ## Getting started
 
@@ -72,7 +72,7 @@ Desktop launch without a terminal, private iPhone access, voice, and an animated
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.8.3.zip
+python build_release.py TREN-v0.8.4.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

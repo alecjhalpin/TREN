@@ -171,6 +171,28 @@ class AssistantTests(unittest.TestCase):
             self.assertEqual(self.request('/api/pc/submit',{'prompt':'storage'})[0],400)
             self.assertEqual(self.request('/api/pc/settings',{'mode':'everything-without-review'})[0],400)
 
+    def test_auto_route_is_authenticated_validated_and_cannot_submit_work(self):
+        from unittest.mock import Mock
+        gpt=Mock();agent=Mock();coding=Mock()
+        a.set_setting('chat_backend','chatgpt')
+        with patch.object(a,'GPT',gpt),patch.object(a,'PC',agent),patch.object(a,'CODING',coding):
+            self.assertEqual(self.request('/api/auto/route',{'message':'How are you?'})[0],401)
+            gpt.respond.assert_not_called()
+            self.login()
+            for route in ('chat','agent','code','review'):
+                gpt.respond.return_value=json.dumps({'route':route,'reason':'Synthetic decision'})
+                status,body,_=self.request('/api/auto/route',{'message':'A synthetic request'})
+                self.assertEqual(status,200)
+                self.assertEqual(body['route'],route)
+            for invalid in ('not JSON','{"route":"execute","reason":"bad"}','{"route":"agent"}'):
+                gpt.respond.return_value=invalid
+                self.assertEqual(self.request('/api/auto/route',{'message':'x'})[0],400)
+            a.set_setting('pc_agent_mode','off')
+            gpt.respond.return_value='{"route":"agent","reason":"Needs live PC state"}'
+            self.assertEqual(self.request('/api/auto/route',{'message':'storage'})[0],400)
+            self.assertEqual(self.request('/api/auto/route',{'message':'x'},{'Origin':'https://evil.example'})[0],403)
+            agent.submit.assert_not_called();coding.submit.assert_not_called()
+
     def test_second_instance_does_not_touch_running_job_state(self):
         with patch.object(sys,'argv',['app.py','--no-browser']),patch.object(a,'TrenHTTPServer',side_effect=OSError('port in use')),patch.object(a,'init') as initialize:
             a.main()

@@ -11,3 +11,7 @@ Retain response.output_item.done items when response.completed omits/repeats no 
 ## 0.8.3 — 2026-10-12
 
 User verified correct live PC drive-storage result in v0.8.2. PC results now use conversation bubbles/replies instead of task cards, with collapsed action evidence and visible approvals/failures. Safe DOM rendering supports bold, code, headings, lists and HTTP(S) links. No raw assistant HTML is interpreted. Visual acceptance remains pending.
+
+## 0.8.4 — 2026-10-12
+
+Replace Auto's unconditional PC-job routing with GPT semantic classification into chat/agent/code/review. Show mode and recommendation reason, respect explicit manual choices, validate model decisions, and preserve Codex review and action approval controls. Routing has no tools and cannot execute actions. Adds an extra GPT request; live routing quality remains pending. Ollama-preferred Auto continues local chat.
