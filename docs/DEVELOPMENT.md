@@ -1,34 +1,30 @@
 # Integrated v0.12 release acceptance
 
-Approved 2026-10-12: one integrated mega-update. `mega-update` is the development branch; v0.11.1 stays stable until the candidate implementation and release checks pass. Phone capability and a wake word are outside this release.
+Approved 2026-10-12: one integrated mega-update. The integrated v0.12 implementation passed candidate acceptance; main-only publication remains gated on the final release run. Phone capability and a wake word are outside this release.
 
 ## Scope and evidence
 
 | Area | Implemented behavior | Verification |
 | --- | --- | --- |
-| Permissions | Whole-PC auto requires warning/checkbox confirmation; review/inspect/off, action-bound review, revocation | Backend/unit checks; real Electron consent checks in candidate CI |
-| Elevation | Authenticated per-user Highest interactive worker after one-time UAC; disable/revoke/parent-lifetime checks | Previous Windows candidate installed pinned rimraf/glob, executed it and verified revocation; user's interactive enrollment is separate |
+| Permissions | Whole-PC auto requires warning/checkbox confirmation; review/inspect/off, action-bound review, revocation | Backend/unit checks; real Electron consent checks in Windows CI |
+| Elevation | Authenticated per-user Highest interactive worker after one-time UAC; disable/revoke/parent-lifetime checks | Windows acceptance installed pinned rimraf/glob, executed it and verified revocation; user's interactive enrollment is separate |
 | Scheduling | Five-field local/UTC cron, reusable workflows, coalescing, no overlap; failed/uncertain prior runs pause | Real SQLite/unit checks; model-generated recurring-work quality needs user acceptance |
 | Memory | Agent-scoped CRUD, pinned context, priority/recency; GPT Chat memory without PC actions | SQLite/provider fixtures including isolation and Chat/off mode |
 | MCP | Pooled stdio/streamable HTTP, tool discovery/calls, lifecycle/timeout/cancel, protected configs | Real local stdio and HTTP server tests; no claim of every external MCP service/OAuth flow |
-| Browser | Dedicated Edge/Playwright profile, references, navigation/actions, previews, upload/download, cancellation | Earlier Windows navigation/fill/click/extraction passed; expanded acceptance is running |
+| Browser | Dedicated Edge/Playwright profile, references, navigation/actions, previews, upload/download, cancellation | Real Windows navigation/fill/click/extraction, password masking, screenshot, upload/download and cancellation passed |
 | Agents | Independent contexts/workspaces, recursive children under shared budgets, serial workspace access | SQLite/blocked-provider/cancellation/recovery tests |
 | Workspace | Traversal-bound listing, text/image preview and reference | Unit/desktop UI checks; whole-PC agents are not OS sandboxes |
-| Voice/orb | Click mic, Whisper/Kokoro, device/rate selection, noise calibration, mute/interruption | Real generated-speech round trip and Electron fake-device capture passed earlier; physical devices/latency remain user acceptance |
+| Voice/orb | Click mic, Whisper/Kokoro, device/rate selection, noise calibration, mute/interruption | Real generated-speech round trip and Electron fake-device capture passed; physical devices/latency remain user acceptance |
 | Activity | Inbox, notifications, Stop All, provider cancellation, root watchdog and limits | Unit/MCP/desktop checks; selected foreign backends are not silently killed |
 | Recovery | Durable checkpoints, descendant mutation ledger, uncertain-action reporting, explicit continuation | Unit/process tests; arbitrary shell effects cannot promise automatic undo |
 | Backup | Agents/memory/workflows/limits/settings export/restore, paused restore, no credentials/session/elevation keys | SQLite/private-settings/workspace-collision checks |
-| Updates | Built-in repo, one desktop button, download then restart confirmation, manifest-backed backend migration | Backend integrity/rollback checks; final installed package/upgrade acceptance pending |
-| Installer | Bundled Python/Node/browser/voice dependencies, folder/shortcut opt-out, legacy data/profile preservation | Earlier staging/NSIS tests passed; corrected actual dependency packaging must pass final Windows CI |
+| Updates | Built-in repo, one desktop button, download then restart confirmation, manifest-backed backend migration | Backend integrity/rollback checks; actual installed package/upgrade acceptance passed |
+| Installer | Bundled Python/Node/browser/voice dependencies, folder/shortcut opt-out, legacy data/profile preservation | Actual installed native imports/npm/window launch and folder/shortcut/legacy profile upgrade acceptance passed |
 | Program install | Small pinned CLI plus dependencies, actual execution and revocation | Real elevated Windows worker installed rimraf 6.0.1 plus glob, removed owned fixture and verified resulting state |
 
 ## Current checkpoint
 
-The ordinary local suite passes **107 Python tests with three opt-in tests skipped** (104 passed); desktop/runtime Node checks pass 10 with two Windows-only checks skipped. Composer logic and JavaScript syntax checks pass. Manifest generation and the real SQLite upgrade/rollback checks pass. These are implementation checks, not live account/device acceptance.
-
-Remote checkpoint `6043520ae8abd58c63bc7a6442f5658f68e22ca9` passed Windows run [38311670256](https://github.com/alecjhalpin/Veyra/actions/runs/38311670256), including real Edge actions, Whisper/Kokoro round trip, authenticated elevated program installation, fake-device audio capture, fresh/existing desktop launch and installer options/profile preservation.
-
-Review afterward found electron-builder's root `node_modules` exclusion. Explicit resource mappings now include tool dependencies and bundled npm; installed-package checks must verify native imports and actual window launch. The expanded Edge fixture also required bounded worker shutdown/diagnostics. Recovery checkpoint `427b475` passed Linux validation; its stalled Windows fixture was cancelled for corrected run `38319199037`. Latest candidate acceptance remains in progress; do not infer success from a timer or a previous source SHA.
+Verified source checkpoint `0f4b8fa296901604b6f4aa7312f5d28ab53ba78b`: [Actions 38323184389](https://github.com/alecjhalpin/Veyra/actions/runs/38323184389) passed Linux validation and Windows acceptance. The ordinary Python suite has 108 tests: 105 passed and three opt-in checks skipped locally; all three opt-in voice/admin checks passed on Windows. Node runtime/desktop checks passed 10 locally with two Windows skips and all 12 on Windows. Composer and syntax checks passed. Windows verified Edge actions, cold local voice preview and recognition, private native C++ runtime loading, elevated rimraf/glob installation and execution, Task Scheduler enrollment/revocation, microphone capture/calibration with a fake device, actual installed dependency imports and app launch, and installer/upgrade/profile/shortcut preservation. Physical microphone/speaker quality, the real GPT account, interactive user UAC consent and overnight daily-use workflows remain separate user acceptance.
 
 ## Architecture and upstream reuse
 

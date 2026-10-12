@@ -1,6 +1,6 @@
 # VEYRA technical guide
 
-Current candidate source: v0.12.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
+Current source: v0.12.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
 
 ## Architecture and providers
 
@@ -80,7 +80,7 @@ Release validation bounds ZIP size to 16 MiB, expanded size to 64 MiB and entrie
 
 Install/restart requires explicit confirmation and blocks active work. The trusted current updater supervisor waits for shutdown, backs up code and snapshots SQLite, installs validated files, relaunches and checks the versioned HTTP server response. Failed startup attempts restore previous code and relaunch. Settings can restore the previous in-app update; bootstrap upgrade prints its rollback command. Ordinary rollback preserves current data, pairing, hosts and projects. Database snapshots and restart logs are private and may contain pairing information; keep them local.
 
-Old installations need the one-time upgrade.bat bootstrap described in the main README. Never rerun setup merely to update an installation. Desktop packaging, local voice/orb and Playwright browser tools are implemented in the v0.12 candidate. Phone and arbitrary native visual desktop control remain future work.
+Old installations need the one-time upgrade.bat bootstrap described in the main README. Never rerun setup merely to update an installation. Desktop packaging, local voice/orb and Playwright browser tools are implemented in v0.12. Phone and arbitrary native visual desktop control remain future work.
 
 ## References
 
@@ -116,3 +116,6 @@ Portable backups include agents, memory, workflows, budgets and selected setting
 ## Dependency maintenance
 
 Pinned runtime: Playwright 1.64.0, Transformers.js 3.8.1, Kokoro.js 1.2.1, sharp override 0.35.5. Models use local CPU inference. npm scripts are disabled when staging these runtime dependencies. The current audit reports six moderate transitive entries through sprintf-js 1.1.3 → roarr/global-agent → the ONNX postinstall helper; the helper is not called by the inference worker and its install script is disabled. There is no patched sprintf-js release available at this checkpoint. Do not apply npm audit --force major upgrades without testing model/runtime compatibility. Preserve dependency licenses and Golemancy attribution in packaged resources.
+
+
+Windows desktop packages include signature-verified Microsoft app-local C++ runtime DLLs beside private Node and ONNX, with provenance and redistribution notices. End users do not need the build host's PowerShell 7 or Visual Studio installation. Both speech preview and recognition place model caches under preserved data/voice_models. Editing the default agent name also updates the saved assistant identity.

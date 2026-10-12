@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased — integrated mega-update (in development)
+## 0.12.0 — 2026-10-12
 
-Source now includes scoped agents and SQLite memory, cron workflows, shared recursion budgets, review/automatic permission handling, durable task evidence and recovery, pooled MCP and Playwright tools, local Whisper/Kokoro voice with an orb, workspace preview, portable backup/restore, an optional elevated worker and a unified desktop update path. Adds microphone noise calibration, live provider cancellation/runtime enforcement, paused uncertain schedules, descendant mutation replay protection and nested workflow serialization. These features are undergoing integrated acceptance; they are not a published release.
+Independent agents and scoped SQLite memory; cron workflows and recursive sub-agents with shared budgets; durable task evidence, checkpoints, notifications and Stop All; pooled native MCP and Playwright browser tools; workspace preview; local Whisper/Kokoro voice, calibration and reactive orb; explicitly confirmed whole-PC automatic mode and optional unattended administrator worker; portable backup/restore; one-button complete desktop updates. Preserve existing data, projects, assistant identity and authentication.
 
-Verified locally: 104 ordinary Python tests pass (107 including three skipped opt-in checks), 10 desktop/runtime Node tests pass with two Windows-only skips, and composer/syntax checks pass. Earlier Windows acceptance verified Edge actions, Whisper/Kokoro round trip, elevated rimraf/glob installation and execution, audio capture, and installer/profile preservation. Final packaged-dependency and expanded browser acceptance are running on the development branch. See `docs/DEVELOPMENT.md` for the acceptance matrix and limitations.
+Bundle private browser/voice dependencies, npm and signature-verified Microsoft app-local C++ runtime libraries. Fix cold voice-preview cache placement, browser shutdown, installed dependency packaging and default-agent rename persistence. Retain installer folder/shortcut choices and legacy profile migration.
+
+Verified source checkpoint `0f4b8fa296901604b6f4aa7312f5d28ab53ba78b`: [Actions 38323184389](https://github.com/alecjhalpin/Veyra/actions/runs/38323184389) passed Linux validation and Windows acceptance. The ordinary Python suite has 108 tests: 105 passed and three opt-in checks skipped locally; all three opt-in voice/admin checks passed on Windows. Node runtime/desktop checks passed 10 locally with two Windows skips and all 12 on Windows. Composer and syntax checks passed. Windows verified Edge actions, cold local voice preview and recognition, private native C++ runtime loading, elevated rimraf/glob installation and execution, Task Scheduler enrollment/revocation, microphone capture/calibration with a fake device, actual installed dependency imports and app launch, and installer/upgrade/profile/shortcut preservation. Physical microphone/speaker quality, the real GPT account, interactive user UAC consent and overnight daily-use workflows remain separate user acceptance.
 
 ## 0.11.1 — 2026-10-12
 
