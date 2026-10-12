@@ -119,6 +119,68 @@ class AssistantTests(unittest.TestCase):
         self.assertIn('Ollama', data['error'])
         self.assertEqual(a.state()['messages'], [])
 
+    def test_gpt_context_and_provider_persistence(self):
+        from unittest.mock import Mock
+        self.login()
+        a.set_setting('chat_backend', 'chatgpt')
+        a.chat('/remember Prefer concise answers')
+        backend = Mock()
+        backend.respond.return_value = 'GPT reply'
+        backend.state.return_value = {'status': 'connected', 'sharing': True}
+        with patch.object(a, 'GPT', backend), patch.object(a, 'generate', side_effect=AssertionError('No Ollama')):
+            status, result, _ = self.request('/api/chat', {'message': 'Hello'})
+        self.assertEqual(status, 200)
+        self.assertEqual(result['answer'], 'GPT reply')
+        messages, instructions, model = backend.respond.call_args.args
+        self.assertIn('Prefer concise answers', instructions)
+        self.assertEqual(messages[-1]['content'], 'Hello')
+        self.assertEqual(a.state()['messages'][-1]['provider'], 'chatgpt')
+        self.assertEqual(a.state()['messages'][1]['provider'], 'local')
+
+    def test_gpt_failure_fallback_is_opt_in_and_labelled(self):
+        from unittest.mock import Mock
+        import providers
+        self.login()
+        a.set_setting('chat_backend', 'chatgpt')
+        backend = Mock()
+        backend.respond.side_effect = providers.ChatGPTError('subscription_sharing_usage_limit_exceeded')
+        backend.state.return_value = {'status': 'connected', 'sharing': True}
+        with patch.object(a, 'GPT', backend), patch.object(a, 'generate', return_value='Local reply') as local:
+            self.assertEqual(self.request('/api/chat', {'message': 'Hello'})[0], 503)
+            local.assert_not_called()
+            self.assertEqual(a.state()['messages'], [])
+            a.set_setting('ollama_fallback', '1')
+            status, result, _ = self.request('/api/chat', {'message': 'Hello'})
+            self.assertEqual(status, 200)
+            self.assertIn('Ollama fallback', result['answer'])
+            self.assertEqual(a.state()['messages'][-1]['provider'], 'ollama')
+            status, _, _ = self.request('/api/chat', {'message': 'Hi locally', 'provider': 'ollama'})
+            self.assertEqual(status, 200)
+            self.assertEqual(backend.respond.call_count, 2)
+
+    def test_gpt_auth_settings_routes_are_paired_and_validated(self):
+        from unittest.mock import Mock
+        backend = Mock()
+        backend.state.return_value = {'status': 'connected', 'sharing': True}
+        backend.models_cache = [{'slug': 'available'}]
+        backend.models.return_value = backend.models_cache
+        backend.start_sign_in.return_value = {'status': 'connecting'}
+        backend.disconnect.return_value = {'ok': True, 'remote_revoked': True}
+        with patch.object(a, 'GPT', backend):
+            for route in ('/api/chatgpt/connect', '/api/chatgpt/models', '/api/chatgpt/disconnect'):
+                self.assertEqual(self.request(route, {})[0], 401)
+            backend.start_sign_in.assert_not_called()
+            self.login()
+            self.assertEqual(self.request('/api/chatgpt/connect', {})[0], 202)
+            self.assertEqual(self.request('/api/chatgpt/models', {})[0], 200)
+            body = {'backend': 'chatgpt', 'model': 'available', 'fallback': False}
+            self.assertEqual(self.request('/api/conversation/settings', body)[0], 200)
+            self.assertEqual(a.setting('chat_backend'), 'chatgpt')
+            self.assertEqual(self.request('/api/conversation/settings', {**body, 'model': 'unknown'})[0], 400)
+            self.assertEqual(self.request('/api/chat', {'message': 'Hello', 'provider': 'unknown'})[0], 400)
+            self.assertEqual(self.request('/api/chatgpt/disconnect', {})[0], 200)
+            self.assertEqual(a.setting('chat_backend'), 'ollama')
+
     def test_due_claim_once_and_recurring_catchup(self):
         with a.db() as c:
             c.execute('INSERT INTO tasks(title,prompt,next_run,interval_seconds) VALUES(?,?,?,?)', ('once','hello',100,0))
