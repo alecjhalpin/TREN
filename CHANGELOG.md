@@ -7,3 +7,7 @@ Windows exclusive HTTP port reservation; explicit ChatGPT option uses plain conv
 ## 0.8.2 — 2026-10-12
 
 Retain response.output_item.done items when response.completed omits/repeats no output; preserve completed encrypted reasoning and tool calls, with successful terminal completion still required. Clearer Auto label and normal ChatGPT label for completed responses without actions. User verified ordinary Auto greeting works but storage query returned an empty completed response in v0.8.1. Parser defect is verified against synthetic fixtures; attribution of the user's failure and live Windows acceptance remain pending.
+
+## 0.8.3 — 2026-10-12
+
+User verified correct live PC drive-storage result in v0.8.2. PC results now use conversation bubbles/replies instead of task cards, with collapsed action evidence and visible approvals/failures. Safe DOM rendering supports bold, code, headings, lists and HTTP(S) links. No raw assistant HTML is interpreted. Visual acceptance remains pending.

@@ -29,12 +29,13 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside TREN, back up app files and restart while preserving your data. |
 
-## What's new in v0.8.2
+## What's new in v0.8.3
 
-- **Streamed tool responses:** retain completed output items and reasoning from the stream when the final completion does not repeat them. Tool calls still require a successfully completed response.
-- **Clearer Auto mode:** the selector says “Auto · chat + PC tools”; completed responses without tool actions appear as ChatGPT conversation.
+- **Conversation layout:** PC tasks use separate user bubbles and clean assistant replies, with action details collapsed beneath the response.
+- **Readable responses:** render bold text, links, lists, headings and fenced code using safe DOM elements.
+- **Less clutter:** routine completion labels and timestamps are removed from PC replies; active, failed and approval states remain visible.
 
-**Verification:** ordinary conversation works on the user's Windows installation. The parser fix passes synthetic streaming regressions; live storage/tool-call acceptance remains pending. Auto uses GPT with available PC tools, while explicit ChatGPT and Chat modes use regular conversation.
+**Verification:** the user confirmed correct live drive-storage results in v0.8.2. UI logic and backend regression checks cover this release; visual Windows/browser acceptance of the new layout remains pending.
 
 ## Getting started
 
@@ -71,7 +72,7 @@ Desktop launch without a terminal, private iPhone access, voice, and an animated
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.8.2.zip
+python build_release.py TREN-v0.8.3.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```
