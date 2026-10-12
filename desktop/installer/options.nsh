@@ -12,6 +12,9 @@ Var VeyraCreateShortcut
 Var VeyraPreviousInstallDir
 Var VeyraExplicitDir
 
+
+; Defer plugin-using functions until electron-builder has registered all plugin directories.
+!macro customHeader
 Function VeyraNormalizeFolder
   ${If} $VeyraExplicitDir != ""
     Return
@@ -23,29 +26,6 @@ Function VeyraNormalizeFolder
     StrCpy $INSTDIR "$1\VEYRA"
   ${EndIf}
 FunctionEnd
-
-!macro customInit
-  !insertmacro GetDParameter $VeyraExplicitDir
-  StrCpy $VeyraPreviousInstallDir "$INSTDIR"
-  StrCpy $VeyraCreateShortcut ${BST_CHECKED}
-  ${If} ${isNoDesktopShortcut}
-    StrCpy $VeyraCreateShortcut ${BST_UNCHECKED}
-  ${EndIf}
-  ; Silent updates retain the user's choice about having a desktop shortcut.
-  ${If} ${isUpdated}
-    StrCpy $VeyraCreateShortcut ${BST_UNCHECKED}
-    ${If} ${FileExists} "$DESKTOP\VEYRA.lnk"
-    ${OrIf} ${FileExists} "$DESKTOP\TREN.lnk"
-      StrCpy $VeyraCreateShortcut ${BST_CHECKED}
-    ${EndIf}
-  ${EndIf}
-  Call VeyraNormalizeFolder
-!macroend
-
-!macro customPageAfterChangeDir
-  Page custom VeyraInstallOptions VeyraInstallOptionsLeave
-!macroend
-
 Function VeyraInstallOptions
   ; Install-mode selection can restore the previous registry path; normalize it here too.
   Call VeyraNormalizeFolder
@@ -72,7 +52,6 @@ Function VeyraInstallOptions
   Pop $0
   nsDialogs::Show
 FunctionEnd
-
 Function VeyraBrowseFolder
   Pop $0
   ${NSD_GetText} $VeyraFolderInput $1
@@ -82,7 +61,6 @@ Function VeyraBrowseFolder
     ${NSD_SetText} $VeyraFolderInput "$0"
   ${EndIf}
 FunctionEnd
-
 Function VeyraInstallOptionsLeave
   ${NSD_GetText} $VeyraFolderInput $INSTDIR
   ${If} $INSTDIR == ""
@@ -91,6 +69,32 @@ Function VeyraInstallOptionsLeave
   ${EndIf}
   ${NSD_GetState} $VeyraShortcutCheckbox $VeyraCreateShortcut
 FunctionEnd
+!macroend
+
+!macro customInit
+  !insertmacro GetDParameter $VeyraExplicitDir
+  StrCpy $VeyraPreviousInstallDir "$INSTDIR"
+  StrCpy $VeyraCreateShortcut ${BST_CHECKED}
+  ${If} ${isNoDesktopShortcut}
+    StrCpy $VeyraCreateShortcut ${BST_UNCHECKED}
+  ${EndIf}
+  ; Silent updates retain the user's choice about having a desktop shortcut.
+  ${If} ${isUpdated}
+    StrCpy $VeyraCreateShortcut ${BST_UNCHECKED}
+    ${If} ${FileExists} "$DESKTOP\VEYRA.lnk"
+    ${OrIf} ${FileExists} "$DESKTOP\TREN.lnk"
+      StrCpy $VeyraCreateShortcut ${BST_CHECKED}
+    ${EndIf}
+  ${EndIf}
+  Call VeyraNormalizeFolder
+!macroend
+
+!macro customPageAfterChangeDir
+  Page custom VeyraInstallOptions VeyraInstallOptionsLeave
+!macroend
+
+
+
 
 !macro customInstall
   ; Start menu links still use the maintained electron-builder implementation.
