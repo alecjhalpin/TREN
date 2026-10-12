@@ -92,6 +92,67 @@ class AssistantTests(unittest.TestCase):
             self.assertEqual(self.request('/api/login', {'code': 'wrong'})[0], 401)
         self.assertEqual(self.request('/api/login', {'code': self.code})[0], 429)
 
+    def remember(self, name='Test browser'):
+        status, _, headers = self.request('/api/login', {'code': self.code, 'remember': True, 'name': name})
+        self.assertEqual(status, 200)
+        self.cookie = headers['Set-Cookie'].split(';')[0]
+        self.assertIn('Max-Age=7776000', headers['Set-Cookie'])
+        self.assertIn('HttpOnly', headers['Set-Cookie'])
+        self.assertIn('SameSite=Strict', headers['Set-Cookie'])
+
+    def test_remembered_device_survives_restart_and_stores_only_hash(self):
+        self.remember()
+        raw_token = self.cookie.split('=', 1)[1]
+        with a.db() as c:
+            row = dict(c.execute('SELECT * FROM devices').fetchone())
+        self.assertEqual(row['token_hash'], a.token_hash(raw_token))
+        self.assertNotIn(raw_token, json.dumps(row))
+        a.SESSIONS.clear()
+        a.init()
+        status, state, _ = self.request('/api/state')
+        self.assertEqual(status, 200)
+        self.assertTrue(state['devices'][0]['current'])
+        self.assertNotIn('token_hash', state['devices'][0])
+        self.assertNotIn(raw_token, json.dumps(state))
+        with a.db() as c:
+            c.execute('UPDATE devices SET expires=?', (time.time()-1,))
+        self.assertEqual(self.request('/api/state')[0], 401)
+
+    def test_device_revocation_and_logout(self):
+        self.remember('First')
+        first_cookie = self.cookie
+        first_id = self.request('/api/devices')[1]['devices'][0]['id']
+        self.remember('Second')
+        self.assertEqual(len(self.request('/api/devices')[1]['devices']), 2)
+        status, result, _ = self.request('/api/devices/revoke', {'id': first_id})
+        self.assertEqual(status, 200)
+        self.assertFalse(result['current'])
+        self.assertEqual(self.request('/api/state', extra={'Cookie': first_cookie})[0], 401)
+        self.assertEqual(self.request('/api/state')[0], 200)
+        self.assertEqual(self.request('/api/logout', {})[0], 200)
+        self.assertEqual(self.request('/api/state')[0], 401)
+        with a.db() as c:
+            self.assertEqual(c.execute('SELECT COUNT(*) FROM devices').fetchone()[0], 0)
+
+    def test_temporary_session_and_device_route_guards(self):
+        self.assertEqual(self.request('/api/devices')[0], 401)
+        self.assertEqual(self.request('/api/devices/revoke', {'id': 'a'*32})[0], 401)
+        self.assertEqual(self.request('/api/login', {'code': self.code, 'remember': 'yes'})[0], 400)
+        self.login()
+        self.assertEqual(self.request('/api/devices/revoke', {'id': '../data'})[0], 400)
+        self.assertEqual(self.request('/api/devices/revoke', {'id': 'a'*32}, {'Origin': 'https://evil.example'})[0], 403)
+        a.SESSIONS.clear()
+        self.assertEqual(self.request('/api/state')[0], 401)
+
+    def test_current_device_revoke_clears_cookie(self):
+        self.remember()
+        did = self.request('/api/devices')[1]['devices'][0]['id']
+        status, result, headers = self.request('/api/devices/revoke', {'id': did})
+        self.assertEqual(status, 200)
+        self.assertTrue(result['current'])
+        self.assertIn('Max-Age=0', headers['Set-Cookie'])
+        self.assertEqual(self.request('/api/state')[0], 401)
+
     def test_chat_and_explicit_memory_persistence(self):
         self.login()
         self.assertEqual(self.request('/api/memory', {'content': 'Name: Alec'})[0], 200)

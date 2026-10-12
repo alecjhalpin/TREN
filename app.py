@@ -1,6 +1,7 @@
 """TREN — Windows-first personal assistant. Python 3.11+."""
 import argparse
 import http.cookies
+import hashlib
 import json
 import os
 import re
@@ -49,6 +50,8 @@ def init():
         c.executescript('''
         PRAGMA journal_mode=WAL;
         CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);
+        CREATE TABLE IF NOT EXISTS devices(id TEXT PRIMARY KEY,token_hash TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,created REAL NOT NULL,expires REAL NOT NULL,last_seen REAL NOT NULL);
         CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,tool TEXT,arguments TEXT,status TEXT,summary TEXT,created REAL);
         CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY,role TEXT,content TEXT,created REAL);
         CREATE TABLE IF NOT EXISTS memories(id INTEGER PRIMARY KEY,content TEXT,created REAL);
@@ -60,6 +63,7 @@ def init():
         c.execute("UPDATE runs SET status='interrupted',result='The assistant stopped during this run. Run the task again.',finished=? WHERE status IN ('queued','running')", (time.time(),))
         if 'provider' not in {row['name'] for row in c.execute('PRAGMA table_info(messages)')}:
             c.execute("ALTER TABLE messages ADD COLUMN provider TEXT NOT NULL DEFAULT 'ollama'")
+        c.execute('DELETE FROM devices WHERE expires<=?', (time.time(),))
     code_path = DATA / 'pairing-code.txt'
     if not code_path.exists():
         code_path.write_text(secrets.token_urlsafe(18), encoding='utf-8')
@@ -338,6 +342,18 @@ def text_field(body, key, maximum):
     return value.strip()
 
 
+def token_hash(token):
+    return hashlib.sha256(token.encode('ascii')).hexdigest()
+
+
+def device_list(token=''):
+    current = token_hash(token) if token else ''
+    with db() as c:
+        rows = c.execute('SELECT * FROM devices WHERE expires>? ORDER BY created DESC', (time.time(),))
+        return [{'id': r['id'], 'name': r['name'], 'created': r['created'], 'expires': r['expires'],
+                 'last_seen': r['last_seen'], 'current': r['token_hash'] == current} for r in rows]
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = 'TrenLocal/' + VERSION
 
@@ -349,15 +365,29 @@ class Handler(BaseHTTPRequestHandler):
         host = self.headers.get('Host', '').lower()
         return host in self.server.allowed_hosts
 
-    def authorized(self):
+    def session_token(self):
         cookie = http.cookies.SimpleCookie()
         try:
             cookie.load(self.headers.get('Cookie', ''))
             token = cookie.get('hp_session')
-            with AUTH_LOCK:
-                return bool(token and SESSIONS.get(token.value, 0) > time.time())
+            value = token.value if token else ''
+            return value if re.fullmatch(r'[A-Za-z0-9_-]{32,128}', value) else ''
         except http.cookies.CookieError:
+            return ''
+
+    def authorized(self):
+        token = self.session_token()
+        if not token:
             return False
+        with AUTH_LOCK:
+            if SESSIONS.get(token, 0) > time.time():
+                return True
+        now = time.time()
+        with db() as c:
+            row = c.execute('SELECT last_seen FROM devices WHERE token_hash=? AND expires>?', (token_hash(token), now)).fetchone()
+            if row and row['last_seen'] < now - 3600:
+                c.execute('UPDATE devices SET last_seen=? WHERE token_hash=?', (now, token_hash(token)))
+        return bool(row)
 
     def send(self, code, payload, mime='application/json', cookie=None):
         data = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
@@ -390,7 +420,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/updates/state':
             return self.send(200, UPDATER.state())
         if path == '/api/state':
-            return self.send(200, state())
+            return self.send(200, {**state(), 'devices': device_list(self.session_token())})
+        if path == '/api/devices':
+            return self.send(200, {'devices': device_list(self.session_token())})
         if path == '/api/codex/health':
             return self.send(200, codex_tasks.health())
         if path == '/api/chatgpt/state':
@@ -438,6 +470,10 @@ class Handler(BaseHTTPRequestHandler):
             path = urllib.parse.urlsplit(self.path).path
             if path == '/api/login':
                 supplied = text_field(body, 'code', 100)
+                remember = body.get('remember', False)
+                if not isinstance(remember, bool):
+                    raise ValueError('Remember device must be true or false.')
+                name = text_field({'name': body.get('name', 'My device')}, 'name', 80)
                 with AUTH_LOCK:
                     key = self.client_address[0]
                     recent = [v for v in ATTEMPTS.get(key, []) if v > time.time() - 60]
@@ -448,16 +484,34 @@ class Handler(BaseHTTPRequestHandler):
                     if not secrets.compare_digest(supplied, self.server.pairing_code):
                         return self.send(401, {'error': 'Incorrect pairing code.'})
                     token = secrets.token_urlsafe(32)
-                    SESSIONS[token] = time.time() + 30 * 86400
+                    if remember:
+                        now = time.time()
+                        with db() as c:
+                            c.execute('DELETE FROM devices WHERE expires<=?', (now,))
+                            c.execute('INSERT INTO devices VALUES(?,?,?,?,?,?)',
+                                      (secrets.token_hex(16), token_hash(token), name, now, now + 90 * 86400, now))
+                    else:
+                        SESSIONS[token] = time.time() + 30 * 86400
                     for old in [k for k, expiry in SESSIONS.items() if expiry <= time.time()]:
                         SESSIONS.pop(old, None)
                 # Tailscale Serve sets X-Forwarded-Proto for its local HTTPS proxy.
                 secure = '; Secure' if self.headers.get('X-Forwarded-Proto') == 'https' or (origin and origin.startswith('https:')) else ''
-                return self.send(200, {'ok': True}, cookie=f'hp_session={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000{secure}')
+                age = '; Max-Age=7776000' if remember else ''
+                return self.send(200, {'ok': True}, cookie=f'hp_session={token}; HttpOnly; SameSite=Strict; Path=/{age}{secure}')
             if not self.authorized():
                 return self.send(401, {'error': 'Pair your device first.'})
             if UPDATING.is_set():
                 raise ValueError('TREN is restarting for an update. Wait for it to reconnect.')
+            if path == '/api/devices/revoke':
+                did = body.get('id')
+                if not isinstance(did, str) or not re.fullmatch(r'[a-f0-9]{32}', did):
+                    raise ValueError('Invalid device identifier.')
+                with db() as c:
+                    row = c.execute('SELECT token_hash FROM devices WHERE id=?', (did,)).fetchone()
+                    c.execute('DELETE FROM devices WHERE id=?', (did,))
+                current = bool(row and row['token_hash'] == token_hash(self.session_token()))
+                return self.send(200, {'ok': True, 'current': current},
+                                 cookie='hp_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0' if current else None)
             if path == '/api/updates/check':
                 return self.send(200, UPDATER.check(body.get('repository')))
             if path == '/api/updates/download':
@@ -569,11 +623,11 @@ class Handler(BaseHTTPRequestHandler):
                 with CHAT_LOCK, db() as c:
                     c.execute('DELETE FROM messages')
             elif path == '/api/logout':
-                cookie = http.cookies.SimpleCookie(self.headers.get('Cookie', ''))
+                token = self.session_token()
                 with AUTH_LOCK:
-                    token = cookie.get('hp_session')
-                    if token:
-                        SESSIONS.pop(token.value, None)
+                    SESSIONS.pop(token, None)
+                    with db() as c:
+                        c.execute('DELETE FROM devices WHERE token_hash=?', (token_hash(token),))
                 return self.send(200, {'ok': True}, cookie='hp_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
             else:
                 return self.send(404, {'error': 'Not found'})
