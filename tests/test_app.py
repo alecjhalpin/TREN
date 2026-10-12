@@ -210,6 +210,28 @@ class AssistantTests(unittest.TestCase):
                 self.assertTrue(stopped.wait(2))
                 stop.set.assert_called_once()
 
+    def test_assistant_profile_requires_pairing_and_persists(self):
+        self.assertEqual(self.request('/api/profile',{'name':'Nova','completed':False})[0],401)
+        self.login()
+        for body in ({'name':'<script>','completed':True},{'name':'Nova','completed':'yes'},{'name':' ','completed':True}):
+            self.assertEqual(self.request('/api/profile',body)[0],400)
+        self.assertEqual(self.request('/api/profile',{'name':'Nova','completed':False})[0],200)
+        self.assertEqual(a.state()['profile'],{'name':'Nova','named':True,'onboarding_complete':False})
+        self.assertIn('You are Nova,',a.system_prompt())
+        a.init()
+        self.assertFalse(a.state()['profile']['onboarding_complete'])
+        self.assertEqual(self.request('/api/profile',{'name':'Nova','completed':True})[0],200)
+        a.init()
+        self.assertTrue(a.state()['profile']['onboarding_complete'])
+
+    def test_existing_user_data_does_not_force_first_run_setup(self):
+        with a.db() as connection:
+            connection.execute("DELETE FROM settings WHERE key='onboarding_complete'")
+            connection.execute("INSERT INTO memories(content,created) VALUES('Preserved note',1)")
+        a.init()
+        self.assertTrue(a.state()['profile']['onboarding_complete'])
+        self.assertEqual(a.state()['memories'][0]['content'],'Preserved note')
+
     def test_second_instance_does_not_touch_running_job_state(self):
         with patch.object(sys,'argv',['app.py','--no-browser']),patch.object(a,'TrenHTTPServer',side_effect=OSError('port in use')),patch.object(a,'init') as initialize:
             a.main()

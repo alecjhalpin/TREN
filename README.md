@@ -29,23 +29,31 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside TREN, back up app files and restart while preserving your data. |
 
-## What's new in v0.9.0
+## What's new in v0.10.0
 
-- **Windows desktop companion:** dedicated chat window, desktop/Start menu shortcuts, tray Open/Quit, optional sign-in launch and one desktop instance.
-- **Remembered appearance:** Light, Dark or Follow Windows/device, plus a quick toggle. Works in both the desktop window and browser.
-- **Existing installation continuity:** the desktop companion launches or connects to your selected Tren-Local folder, using its data, providers and backend update path.
-- **Separate desktop updates:** check desktop-shell releases from the native menu; backend releases remain in TREN Settings.
-
-Update your existing backend to v0.9.0 first, then install **TREN-Desktop-Setup-0.9.0.exe** from [Releases](https://github.com/alecjhalpin/TREN/releases/latest). See [desktop setup](https://github.com/alecjhalpin/TREN/blob/main/docs/DESKTOP.md). Windows desktop build/smoke verification and user acceptance are tracked separately in [Testing](https://github.com/alecjhalpin/TREN/blob/main/docs/TESTING.md).
+- **One Windows installer for new users:** bundles the backend and private Python/Node runtimes; detects an existing installation and keeps its data. Optional Codex and Ollama/model setup is available inside the app.
+- **Personal assistant setup:** name your assistant, connect ChatGPT, then choose optional tools. The assistant's display name is separate from the application brand.
+- **Integrated desktop chrome:** themed title bar and in-app application menu replace the separate TREN/View menu strip.
+- **Modern mode picker:** readable descriptions for Auto, Chat, PC Agent, Build, Review and provider overrides.
 
 ## Getting started
 
-1. Download **TREN-vX.Y.Z.zip** from [Releases](https://github.com/alecjhalpin/TREN/releases/latest) and extract it.
-2. For a first installation, run `setup.bat` to install missing Python/Ollama and download the default local model.
-3. Run `start.bat`, open TREN and pair using the displayed code.
-4. Connect ChatGPT in Settings. Coding tasks additionally need the installed Codex CLI signed in with ChatGPT.
+### New Windows installation
 
-Python 3.11+ is required. Windows and Node.js are required for protected ChatGPT sign-in and identity verification. The default Ollama model is `qwen3:8b`. ChatGPT usage depends on your eligible plan and its limits; TREN does not use an API key for this connection.
+1. Download **TREN-Desktop-Setup-0.10.0.exe** from [Releases](https://github.com/alecjhalpin/TREN/releases/latest) and run it.
+2. Open the desktop shortcut. The app prepares its bundled backend/runtimes if no existing installation is found.
+3. Choose your assistant's name and connect ChatGPT in the welcome flow. No API key is configured for this connection; eligible-plan limits apply.
+4. Optionally install/check Codex and connect its separate ChatGPT CLI login. Choose local AI only if you want Ollama and its roughly 5 GB default model download.
+
+Basic ChatGPT/PC-agent setup no longer needs a separate Python/Node installation or mandatory Ollama download. Existing compatible Python installations can be reused; bundled runtime files do not replace global installations. Optional Ollama setup uses Windows winget and may show its installer/UAC prompt. See [Desktop setup](https://github.com/alecjhalpin/TREN/blob/main/docs/DESKTOP.md).
+
+### Existing TREN users
+
+Update the backend through Settings → Updates first, then update/install the desktop shell. Keep your existing Tren-Local folder: data, auth, projects and models remain there. Rename your assistant under Settings → Your assistant. Returning users are not forced through a fresh setup.
+
+### Source/browser setup
+
+The release ZIP and setup.bat remain available for manual/source installations. Python 3.11+ is required for this route; setup.bat installs missing Python/Ollama and downloads the default model. Do not rerun setup.bat to update an existing installation. The default local model is qwen3:8b.
 
 ## Updating TREN
 
@@ -77,7 +85,7 @@ Further desktop polish, private iPhone access, voice, and an animated orb interf
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.9.0.zip
+python build_release.py TREN-v0.10.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

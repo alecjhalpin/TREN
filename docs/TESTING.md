@@ -2,10 +2,10 @@
 
 ## Current automated baseline
 
-v0.9.0: 80 backend tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
+v0.10.0: 82 backend tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
 
 ```sh
-python build_release.py TREN-v0.9.0.zip
+python build_release.py TREN-v0.10.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```
@@ -57,3 +57,7 @@ Four Node transport/installation/navigation/version tests pass locally, plus the
 Pending installed-PC acceptance: installer/shortcuts, tray close/open/quit, launch at sign-in, remembered desktop pairing, continued GPT/tool use, backend update/reconnect, and an actual later desktop-shell update. User reported successful file creation, action denial, harmless PowerShell execution and cancellation before desktop development; UAC remains a separate pending test.
 
 Windows build evidence: [Actions run 38248472618](https://github.com/alecjhalpin/TREN/actions/runs/38248472618) passed backend validation, the actual Electron/Python Windows smoke test, theme reload persistence, pairing with temporary CI data, authenticated owned-backend shutdown, and NSIS installer packaging. Both captured light/dark layouts were visually reviewed after publication. These use synthetic preview conversation content, not a live GPT session. Installer/shortcuts/tray/startup and later updater acceptance on the user's PC remain pending. A separate real-process Linux desktop-controller startup/status/graceful-shutdown check also passed without model calls.
+
+## v0.10.0 acceptance scope
+
+Adds backend profile authentication/validation/persistence and returning-user migration tests, a private-runtime bootstrap preservation test, and UI logic checks. The Windows workflow now covers both an existing installation and a new managed backend using bundled Python/Node, as well as theme/window/onboarding smoke checks. Optional Codex/Ollama downloads and real account consent are not run by CI. Fresh installed-PC setup, provider consent, optional installs and public-brand selection remain separate user acceptance items.

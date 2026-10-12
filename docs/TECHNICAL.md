@@ -1,6 +1,6 @@
 # TREN technical guide
 
-Current source: v0.9.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
+Current source: v0.10.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
 
 ## Architecture and providers
 
@@ -93,4 +93,6 @@ Old installations need the one-time upgrade.bat bootstrap described in the main 
 
 ## Desktop companion
 
-The Electron companion runs the existing installation through its saved folder selection, using a sandboxed, isolated renderer and native tray/menus. It has no preload bridge or renderer Node access. A random in-memory native controller credential is passed to the owned backend through its environment; control requests are loopback-only and require the exact credential, confirmation and host/origin checks. The status endpoint returns only version, installation fingerprint and controller hash, not paths or credentials. Backend updater children inherit the controller environment so native Quit can still address the current owned backend after a backend update. See [Desktop setup](DESKTOP.md).
+The Electron companion runs the existing installation through its saved folder selection, using a sandboxed, isolated renderer and native tray/menus. It has a narrow origin-validated preload bridge for theme/menu and optional setup, without renderer Node access. A random in-memory native controller credential is passed to the owned backend through its environment; control requests are loopback-only and require the exact credential, confirmation and host/origin checks. The status endpoint returns only version, installation fingerprint and controller hash, not paths or credentials. Backend updater children inherit the controller environment so native Quit can still address the current owned backend after a backend update. See [Desktop setup](DESKTOP.md).
+
+Assistant profile names and setup completion are SQLite settings. Existing users migrate without forced onboarding. Backend mode/inference functions use the saved assistant identity, while application/update/package identities stay unchanged pending rebranding. Bundled managed runtime directories are versioned and staged separately from code updates; optional tools remain local and separate from the backend code manifest.

@@ -117,7 +117,7 @@ catch{process.stdout.write('0');}
 
 
 def verify_signature(token, key):
-    node = shutil.which('node')
+    node = os.getenv('TREN_NODE') or shutil.which('node')
     if not node:
         raise ChatGPTError('identity_unavailable')
     try:
@@ -221,7 +221,7 @@ class ChatGPT:
         self.discovery_cache = None
         self.record = {}
         self.error = None
-        self.supported = os.name == 'nt' and bool(shutil.which('node'))
+        self.supported = os.name == 'nt' and bool(os.getenv('TREN_NODE') or shutil.which('node'))
         if self.path.exists():
             try:
                 if self.path.is_symlink() or self.directory.is_symlink() or self.path.stat().st_size > 1024 * 1024:

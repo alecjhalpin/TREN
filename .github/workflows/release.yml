@@ -40,6 +40,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Stage first-install backend and runtimes
+        run: python desktop/prepare-resources.py
       - name: Install locked desktop dependencies
         working-directory: desktop
         run: npm ci
@@ -51,7 +53,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:TREN_DESKTOP_ROOT = (Resolve-Path '..').Path
           $env:TREN_PYTHON = (Get-Command python).Source
+          $env:TREN_RESOURCES = (Resolve-Path 'resources').Path
           node_modules/.bin/electron.cmd . --smoke-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fresh install with bundled runtimes
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          $env:TREN_RESOURCES = (Resolve-Path 'resources').Path
+          node_modules/.bin/electron.cmd . --smoke-test --smoke-fresh
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Package Windows installer
         working-directory: desktop

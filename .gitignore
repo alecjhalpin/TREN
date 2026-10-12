@@ -13,3 +13,5 @@ desktop/smoke-output/
 desktop/build/
 core
 desktop/release-out/
+desktop/resources/
+desktop/managed-smoke/

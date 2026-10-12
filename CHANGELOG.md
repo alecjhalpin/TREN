@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0 — 2026-10-12
+
+First-install backend plus hash-verified private Python/Node runtimes; optional Codex/Ollama installers with explicit native confirmation and reuse checks. First-run assistant naming/ChatGPT/optional-tools onboarding, persisted assistant identity, returning-user migration, themed desktop title bar with a narrow validated preload bridge, and readable custom mode menu. Existing backend data/updater paths preserved. TREN remains the application brand pending user choice; DeepSeek/Grok/Claude remain planned. Fresh Windows/runtime/visual acceptance is distinct from synthetic tests.
+
 ## 0.9.0 — 2026-10-12
 
 Windows Electron desktop companion with existing-folder selection, hidden Python startup, dedicated conversation window, tray lifecycle, opt-in login launch, single desktop instance and explicit shell-update controls. Adds saved light/dark/system appearance to browser and desktop. Local backend controller requires a random desktop-only credential; the renderer cannot access it. Existing pairing, GPT/Codex/Ollama, data and backend updater remain in place. Windows packaging and live acceptance are distinct from fixtures.

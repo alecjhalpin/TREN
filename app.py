@@ -49,6 +49,7 @@ def db():
 
 
 def init():
+    existed=(DATA / 'assistant.sqlite').exists()
     DATA.mkdir(parents=True, exist_ok=True)
     with db() as c:
         c.executescript('''
@@ -68,6 +69,8 @@ def init():
         if 'provider' not in {row['name'] for row in c.execute('PRAGMA table_info(messages)')}:
             c.execute("ALTER TABLE messages ADD COLUMN provider TEXT NOT NULL DEFAULT 'ollama'")
         c.execute('DELETE FROM devices WHERE expires<=?', (time.time(),))
+        known=existed and any(c.execute('SELECT COUNT(*) FROM '+table).fetchone()[0] for table in ('messages','memories','devices'))
+        c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('onboarding_complete',?)",('1' if known else '0',))
     code_path = DATA / 'pairing-code.txt'
     if not code_path.exists():
         code_path.write_text(secrets.token_urlsafe(18), encoding='utf-8')
@@ -115,7 +118,7 @@ def use_web_tool(name, arguments):
 def system_prompt():
     with db() as c:
         notes = [r['content'] for r in c.execute('SELECT content FROM memories ORDER BY id DESC LIMIT 30')]
-    return ('You are TREN, a practical personal assistant. Be direct, warm, conversational and helpful. '
+    return ('You are ' + setting('assistant_name','TREN') + ', a practical personal assistant. Be direct, warm, conversational and helpful. '
             'Match the user’s energy without forced enthusiasm. Keep simple answers short. '
             'Use available web tools for current facts or user requests to search. Read source pages when needed, and cite actual source URLs. '
             'If a tool fails, say so. Never invent results or claim an action without a successful tool result. '
@@ -380,6 +383,7 @@ def scheduler():
 def state():
     with db() as c:
         return {
+            'profile': {'name':setting('assistant_name','TREN'),'named':bool(setting('assistant_name','')),'onboarding_complete':setting('onboarding_complete')=='1'},
             'updates': UPDATER.state() if UPDATER else None,
             'providers': PROVIDERS,
             'pc_agent': {'mode': setting('pc_agent_mode','review'), 'enabled': setting('pc_agent_mode','review')!='off',
@@ -587,6 +591,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(401, {'error': 'Pair your device first.'})
             if UPDATING.is_set():
                 raise ValueError('TREN is restarting for an update. Wait for it to reconnect.')
+            if path == '/api/profile':
+                name=text_field(body,'name',40)
+                if not all(ch.isalnum() or ch in " -_'." for ch in name):
+                    raise ValueError('Use letters, numbers, spaces, apostrophes, dots, hyphens or underscores for the assistant name.')
+                completed=body.get('completed',False)
+                if not isinstance(completed,bool):raise ValueError('Setup completion must be true or false.')
+                set_setting('assistant_name',name)
+                set_setting('onboarding_complete','1' if completed else '0')
+                return self.send(200,{'ok':True})
             if path == '/api/auto/route':
                 return self.send(200,auto_route(text_field(body,'message',6000)))
             if path == '/api/pc/submit':
