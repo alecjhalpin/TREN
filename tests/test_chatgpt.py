@@ -179,6 +179,20 @@ class ProtocolTests(unittest.TestCase):
         self.assertIs(args[1]['stream'], True)
         self.assertEqual(kwargs['token'], 'synthetic-access')
 
+    def test_namespaced_tools_request_returns_completed_calls(self):
+        import codex_tasks
+        self.connected()
+        event={'type':'response.completed','response':{'status':'completed','output':[
+            {'type':'function_call','namespace':'tren','name':'pc_info','call_id':'call','arguments':'{"section":"storage"}'}]}}
+        stream=io.BytesIO(('data: '+json.dumps(event)+'\n\n').encode())
+        with patch.object(self.client,'_json',side_effect=self.json_remote),patch.object(self.client,'_open',return_value=stream) as opened:
+            reply=self.client.respond_turn([{'role':'user','content':'storage'}],'context',tools=codex_tasks.pc_schemas())
+        body=opened.call_args.args[1]
+        self.assertEqual(body['tools'][0]['type'],'namespace')
+        self.assertEqual(reply['calls'][0]['call_id'],'call')
+        self.assertNotIn('previous_response_id',body)
+        self.assertFalse(body['store']);self.assertTrue(body['stream'])
+
     def test_late_failure_or_disconnected_stream_never_accepts_partial_text(self):
         delta = {'type': 'response.output_text.delta', 'delta': 'partial reply'}
         failed = {'type': 'response.failed', 'response': {'error': {'code': 'subscription_sharing_usage_limit_exceeded', 'message': 'SECRET'}}}
@@ -207,6 +221,16 @@ class ProtocolTests(unittest.TestCase):
 
 
 class SignatureTests(unittest.TestCase):
+    def test_structured_tool_only_completion_preserves_namespace_and_reasoning(self):
+        import io
+        output=[{'type':'reasoning','id':'r','encrypted_content':'synthetic'},
+                {'type':'function_call','namespace':'tren','name':'pc_info','call_id':'call-id','arguments':'{"section":"storage"}'}]
+        event={'type':'response.completed','response':{'status':'completed','output':output}}
+        parsed=p.read_stream(io.BytesIO(('data: '+json.dumps(event)+'\n\n').encode()),structured=True)
+        self.assertEqual(parsed['output'],output)
+        self.assertEqual(parsed['calls'][0]['call_id'],'call-id')
+        self.assertEqual(parsed['text'],'')
+
     def test_real_node_rsa_signature_and_tampering(self):
         script = """const c=require('node:crypto');const {privateKey,publicKey}=c.generateKeyPairSync('rsa',{modulusLength:2048});const h=Buffer.from(JSON.stringify({alg:'RS256'})).toString('base64url');const b=Buffer.from(JSON.stringify({sub:'synthetic'})).toString('base64url');const text=h+'.'+b;console.log(JSON.stringify({token:text+'.'+c.sign('RSA-SHA256',Buffer.from(text),privateKey).toString('base64url'),key:publicKey.export({format:'jwk'})}));"""
         fixture = json.loads(subprocess.check_output(['node', '-e', script], text=True))

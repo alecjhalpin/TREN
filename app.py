@@ -2,6 +2,7 @@
 import argparse
 import http.cookies
 import hashlib
+import contextlib
 import json
 import os
 import re
@@ -12,6 +13,7 @@ UPDATER = None
 from providers import PROVIDERS, ChatGPT, ChatGPTError
 GPT = None
 CODING = None
+PC = None
 from pathlib import Path
 import secrets
 import sqlite3
@@ -120,6 +122,24 @@ def system_prompt():
             'Memory and tasks can be managed using the UI or user-entered /remember and /remind commands; you cannot execute those commands yourself. '
             'Local date/time: ' + time.strftime('%Y-%m-%d %H:%M:%S %Z') +
             '\nSaved notes:\n' + '\n'.join('- ' + n for n in notes))
+
+
+def pc_context(prompt):
+    with db() as c:
+        history=[dict(r) for r in reversed(list(c.execute('SELECT role,content FROM messages ORDER BY id DESC LIMIT 10')))]
+        previous=[{'task':r['prompt'],'status':r['status'],'result':r['result'][:3000]} for r in c.execute('SELECT prompt,status,result FROM pc_jobs WHERE finished IS NOT NULL ORDER BY created DESC LIMIT 3')]
+    instructions=system_prompt().replace('You cannot send email, control the desktop, make purchases, run arbitrary commands, or read local files. ', '')
+    instructions+='\nRecent PC task reports (historical context, not live state):\n'+json.dumps(previous)[:10000]
+    return history+[{'role':'user','content':prompt}],instructions
+
+
+def pc_response(messages,instructions,tools):
+    if not GPT:
+        raise ChatGPTError('sign_in_required')
+    if setting('pc_agent_mode','review')=='off':
+        raise RuntimeError('PC agent is disabled in Settings.')
+    with GENERATION_LOCK:
+        return GPT.respond_turn(messages,instructions,setting('chat_model',''),tools)
 
 
 def generate(messages):
@@ -317,6 +337,8 @@ def state():
         return {
             'updates': UPDATER.state() if UPDATER else None,
             'providers': PROVIDERS,
+            'pc_agent': {'mode': setting('pc_agent_mode','review'), 'enabled': setting('pc_agent_mode','review')!='off',
+                         'jobs': PC.jobs() if PC else [], 'windows': os.name=='nt'},
             'chatgpt': GPT.state() if GPT else None,
             'chat_backend': setting('chat_backend', 'ollama'),
             'chat_model': setting('chat_model', ''),
@@ -502,6 +524,27 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(401, {'error': 'Pair your device first.'})
             if UPDATING.is_set():
                 raise ValueError('TREN is restarting for an update. Wait for it to reconnect.')
+            if path == '/api/pc/submit':
+                if not PC or setting('pc_agent_mode','review')=='off':
+                    raise ValueError('Enable PC agent in Settings first.')
+                if not GPT or GPT.state()['status']!='connected' or not GPT.state()['sharing']:
+                    raise ValueError('Connect ChatGPT with plan sharing before starting a PC task.')
+                with PC.lock:
+                    if UPDATING.is_set():raise ValueError('TREN is restarting for an update.')
+                    jid=PC.submit(text_field(body,'prompt',6000))
+                return self.send(202,{'id':jid, 'provider':'chatgpt'})
+            if path == '/api/pc/cancel':
+                PC.cancel(text_field(body,'id',64));return self.send(200,{'ok':True})
+            if path == '/api/pc/approve':
+                PC.decide(body.get('id'),body.get('request_id'),body.get('digest'),body.get('allow'))
+                return self.send(200,{'ok':True})
+            if path == '/api/pc/settings':
+                mode=body.get('mode')
+                if mode not in ('off','inspect','review'):raise ValueError('Invalid PC agent mode.')
+                previous=setting('pc_agent_mode','review')
+                set_setting('pc_agent_mode',mode)
+                if PC and PC.active and mode!=previous:PC.cancel(PC.active[0])
+                return self.send(200,{'ok':True})
             if path == '/api/devices/revoke':
                 did = body.get('id')
                 if not isinstance(did, str) or not re.fullmatch(r'[a-f0-9]{32}', did):
@@ -650,7 +693,9 @@ def begin_update(server, do_rollback=False):
     try:
         if GPT and GPT.connecting:
             raise ValueError('Finish or cancel ChatGPT sign-in before updating.')
-        with CODING.lock:
+        with CODING.lock, (PC.lock if PC else contextlib.nullcontext()):
+            if PC and PC.active:
+                raise ValueError('Finish or cancel the PC agent task before updating.')
             UPDATING.set()
             with db() as c:
                 c.execute('BEGIN IMMEDIATE')
@@ -683,9 +728,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args()
-    global CODING, UPDATER, GPT
+    global CODING, UPDATER, GPT, PC
+    # Reserve the port before touching job state. A second instance must not
+    # interrupt the first instance's coding/PC jobs during initialization.
+    try:
+        server = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
+    except OSError:
+        print(f'Cannot start TREN on port {PORT}. Check whether TREN is already running.',flush=True)
+        return
     code = init()
     GPT = ChatGPT(DATA, lambda: set_setting('chat_backend', 'chatgpt'))
+    PC = codex_tasks.PCManager(db,DATA,pc_response,pc_context,use_web_tool,
+                             lambda: setting('pc_agent_mode','review'))
     UPDATER = update_runtime.Manager(ROOT, DATA, setting, set_setting)
     CODING = codex_tasks.Manager(db, DATA, lambda: setting('gaming') == '1')
     CODING.start()
@@ -693,7 +747,6 @@ def main():
     host_file = ROOT / 'allowed-hosts.txt'
     if host_file.exists():
         hosts.update(line.strip().lower() for line in host_file.read_text().splitlines() if line.strip() and not line.startswith('#'))
-    server = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
     server.daemon_threads = True
     server.pairing_code = code
     server.allowed_hosts = hosts
@@ -708,6 +761,7 @@ def main():
     finally:
         STOP.set()
         GPT.cancel_sign_in()
+        PC.close()
         CODING.close()
         server.server_close()
 

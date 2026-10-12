@@ -153,6 +153,29 @@ class AssistantTests(unittest.TestCase):
         self.assertIn('Max-Age=0', headers['Set-Cookie'])
         self.assertEqual(self.request('/api/state')[0], 401)
 
+    def test_pc_agent_api_auth_consent_and_settings(self):
+        from unittest.mock import Mock
+        agent=Mock();agent.submit.return_value='job';agent.jobs.return_value=[];agent.active=None
+        agent.lock=threading.RLock()
+        gpt=Mock();gpt.state.return_value={'status':'connected','sharing':True}
+        with patch.object(a,'PC',agent),patch.object(a,'GPT',gpt):
+            self.assertEqual(self.request('/api/pc/submit',{'prompt':'storage'})[0],401)
+            self.assertEqual(self.request('/api/pc/approve',{})[0],401)
+            agent.submit.assert_not_called()
+            self.login()
+            self.assertEqual(self.request('/api/pc/submit',{'prompt':'storage'})[0],202)
+            self.assertEqual(self.request('/api/pc/approve',{'id':'job','request_id':'request','digest':'digest','allow':True})[0],200)
+            agent.decide.assert_called_once_with('job','request','digest',True)
+            self.assertEqual(self.request('/api/pc/submit',{'prompt':'storage'},{'Origin':'https://evil.example'})[0],403)
+            self.assertEqual(self.request('/api/pc/settings',{'mode':'off'})[0],200)
+            self.assertEqual(self.request('/api/pc/submit',{'prompt':'storage'})[0],400)
+            self.assertEqual(self.request('/api/pc/settings',{'mode':'everything-without-review'})[0],400)
+
+    def test_second_instance_does_not_touch_running_job_state(self):
+        with patch.object(sys,'argv',['app.py','--no-browser']),patch.object(a,'ThreadingHTTPServer',side_effect=OSError('port in use')),patch.object(a,'init') as initialize:
+            a.main()
+            initialize.assert_not_called()
+
     def test_chat_and_explicit_memory_persistence(self):
         self.login()
         self.assertEqual(self.request('/api/memory', {'content': 'Name: Alec'})[0], 200)

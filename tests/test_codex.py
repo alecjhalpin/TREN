@@ -72,10 +72,12 @@ print(json.dumps({'type':'turn.completed','usage':{'input_tokens':10}}),flush=Tr
 
     def test_running_cancel(self):
         jid=self.submit('SLEEP');self.m.start()
-        end=time.time()+3
-        while jid not in self.m.active and time.time()<end: time.sleep(.02)
+        end=time.monotonic()+5
+        while jid not in self.m.active and time.monotonic()<end: time.sleep(.02)
+        self.assertIn(jid,self.m.active)
         self.m.cancel(jid)
-        while self.m.jobs()[0]['status']!='cancelled' and time.time()<end: time.sleep(.02)
+        end=time.monotonic()+5
+        while self.m.jobs()[0]['status']!='cancelled' and time.monotonic()<end: time.sleep(.02)
         self.assertEqual(self.m.jobs()[0]['status'],'cancelled')
 
     def test_queue_cancel_and_recovery(self):

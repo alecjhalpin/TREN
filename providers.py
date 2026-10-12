@@ -125,7 +125,7 @@ def verify_signature(token, key):
     return result.returncode == 0 and result.stdout == '1'
 
 
-def read_stream(response):
+def read_stream(response, structured=False):
     """SSE is successful only after response.completed, including late failures."""
     chunks, event_lines, total = [], [], 0
     deadline = time.monotonic() + 180
@@ -170,6 +170,17 @@ def read_stream(response):
                             elif part.get('type') == 'refusal':
                                 output.append(part.get('refusal', ''))
                 text = ''.join(output or chunks).strip()
+                if structured:
+                    items = complete.get('output', [])
+                    if not isinstance(items, list):
+                        raise ChatGPTError('incomplete_response')
+                    calls = [item for item in items if item.get('type') == 'function_call']
+                    for call in calls:
+                        if not all(isinstance(call.get(k), str) and call[k] for k in ('call_id', 'name', 'arguments')) or len(call['arguments']) > 40000:
+                            raise ChatGPTError('incomplete_response')
+                    if not text and not calls:
+                        raise ChatGPTError('incomplete_response')
+                    return {'text': text, 'output': items, 'calls': calls}
                 if not text:
                     raise ChatGPTError('incomplete_response')
                 return text
@@ -404,6 +415,9 @@ class ChatGPT:
                 raise
 
     def respond(self, messages, instructions, model=''):
+        return self.respond_turn(messages, instructions, model)
+
+    def respond_turn(self, messages, instructions, model='', tools=None):
         with self.lock:
             try:
                 if not self.models_cache or time.time() - self.catalog_at > 300:
@@ -412,16 +426,19 @@ class ChatGPT:
                 selected = model or (choices[0] if choices else '')
                 if selected not in choices:
                     raise ChatGPTError('provider_error')
-                with self._open(RESOURCE + '/responses', {'model': selected, 'input': messages,
-                                'instructions': instructions, 'store': False, 'stream': True},
+                body = {'model': selected, 'input': messages, 'instructions': instructions,
+                        'store': False, 'stream': True}
+                if tools is not None:
+                    body.update(tools=tools, parallel_tool_calls=False, include=['reasoning.encrypted_content'])
+                with self._open(RESOURCE + '/responses', body,
                                 token=self._credentials(), timeout=60) as response:
-                    text = read_stream(response)
+                    text = read_stream(response, structured=tools is not None)
                 self.error = None
                 return text
             except ChatGPTError as e:
                 self.error = e
                 raise
-            except (OSError, ValueError, TypeError):
+            except (OSError, ValueError, TypeError, AttributeError):
                 self.error = ChatGPTError('incomplete_response')
                 raise self.error from None
 
