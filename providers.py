@@ -129,7 +129,7 @@ def verify_signature(token, key):
     return result.returncode == 0 and result.stdout == '1'
 
 
-def read_stream(response, structured=False):
+def read_stream(response, structured=False, on_text=None):
     """SSE is successful only after response.completed, including late failures."""
     chunks, event_lines, total = [], [], 0
     completed_items = {}
@@ -159,6 +159,7 @@ def read_stream(response, structured=False):
                 if not isinstance(delta, str):
                     raise ChatGPTError('incomplete_response')
                 chunks.append(delta)
+                if on_text:on_text(delta)
             elif kind == 'response.output_item.done':
                 index, item = event.get('output_index'), event.get('item')
                 if type(index) is not int or not 0 <= index < 1000 or not isinstance(item, dict):
@@ -195,7 +196,7 @@ def read_stream(response, structured=False):
                             raise ChatGPTError('tool_response_invalid')
                     if not text and not calls:
                         raise ChatGPTError('tool_response_empty')
-                    return {'text': text, 'output': items, 'calls': calls}
+                    return {'text': text, 'output': items, 'calls': calls, 'usage':complete.get('usage') if isinstance(complete.get('usage'),dict) else {}}
                 if not text:
                     raise ChatGPTError('incomplete_response')
                 return text
@@ -213,6 +214,7 @@ class ChatGPT:
         self.directory = Path(data) / 'chatgpt'
         self.path = self.directory / 'connection.dpapi'
         self.lock = threading.RLock()
+        self.requests_lock=threading.Lock();self.requests={}
         self.cancelled = threading.Event()
         self.connecting = False
         self.on_connected = on_connected
@@ -432,33 +434,41 @@ class ChatGPT:
     def respond(self, messages, instructions, model=''):
         return self.respond_turn(messages, instructions, model)
 
-    def respond_turn(self, messages, instructions, model='', tools=None):
-        with self.lock:
+    def respond_turn(self, messages, instructions, model='', tools=None, on_text=None):
+        try:
+            # Refresh/catalog writes are serialized. Independent agent response streams are not.
+            with self.lock:
+                if not self.models_cache or time.time()-self.catalog_at>300:self.models()
+                choices=[m['slug'] for m in self.models_cache];selected=model or (choices[0] if choices else '')
+                if selected not in choices:raise ChatGPTError('provider_error')
+                token=self._credentials()
+            body={'model':selected,'input':messages,'instructions':instructions,'store':False,'stream':True}
+            if tools is not None:body.update(tools=tools,parallel_tool_calls=False,include=['reasoning.encrypted_content'])
+            with self._open(RESOURCE+'/responses',body,token=token,timeout=60) as response:
+                with self.requests_lock:self.requests[response]=threading.current_thread().name
+                try:result=read_stream(response,structured=tools is not None,on_text=on_text)
+                finally:
+                    with self.requests_lock:self.requests.pop(response,None)
+            with self.lock:self.error=None
+            return result
+        except ChatGPTError as error:
+            with self.lock:self.error=error
+            raise
+        except OSError:
+            with self.lock:self.error=ChatGPTError('network_error')
+            raise self.error from None
+        except (ValueError,TypeError,AttributeError):
+            with self.lock:self.error=ChatGPTError('response_format_error')
+            raise self.error from None
+
+    def cancel_requests(self,tag=None):
+        with self.requests_lock:responses=[r for r,name in self.requests.items() if tag is None or name==tag]
+        for response in responses:
             try:
-                if not self.models_cache or time.time() - self.catalog_at > 300:
-                    self.models()
-                choices = [m['slug'] for m in self.models_cache]
-                selected = model or (choices[0] if choices else '')
-                if selected not in choices:
-                    raise ChatGPTError('provider_error')
-                body = {'model': selected, 'input': messages, 'instructions': instructions,
-                        'store': False, 'stream': True}
-                if tools is not None:
-                    body.update(tools=tools, parallel_tool_calls=False, include=['reasoning.encrypted_content'])
-                with self._open(RESOURCE + '/responses', body,
-                                token=self._credentials(), timeout=60) as response:
-                    text = read_stream(response, structured=tools is not None)
-                self.error = None
-                return text
-            except ChatGPTError as e:
-                self.error = e
-                raise
-            except OSError:
-                self.error = ChatGPTError('network_error')
-                raise self.error from None
-            except (ValueError, TypeError, AttributeError):
-                self.error = ChatGPTError('response_format_error')
-                raise self.error from None
+                sock=getattr(getattr(getattr(response,'fp',None),'raw',None),'_sock',None)
+                if sock:sock.shutdown(__import__('socket').SHUT_RDWR)
+                response.close()
+            except OSError:pass
 
     def start_sign_in(self):
         with self.lock:

@@ -10,6 +10,9 @@ import re
 import webtools
 import codex_tasks
 import update_runtime
+import agent_runtime
+import admin_broker
+ENGINE = None
 UPDATER = None
 from providers import PROVIDERS, ChatGPT, ChatGPTError
 GPT = None
@@ -145,7 +148,7 @@ def pc_context(prompt):
     return history+[{'role':'user','content':prompt}],instructions
 
 
-def auto_route(prompt):
+def auto_route(prompt,agent_id='default'):
     # This request chooses an interface only. It has no tools and cannot act.
     if setting('chat_backend','ollama') != 'chatgpt':
         return {'route':'chat','reason':'Using your preferred local conversation provider.'}
@@ -186,6 +189,23 @@ def auto_route(prompt):
     if choice['route']=='agent' and setting('pc_agent_mode','review')=='off':
         raise ValueError('This request needs PC access, which is off. Enable it in Settings or choose Chat for guidance.')
     return {'route':choice['route'],'reason':reason}
+
+
+def agent_response_stream(messages,instructions,tools,on_text):
+    if not GPT:raise ChatGPTError('sign_in_required')
+    return GPT.respond_turn(messages,instructions,setting('chat_model',''),tools,on_text=on_text)
+
+
+def agent_chat_response(messages,instructions,provider,on_text):
+    if provider not in ('chatgpt','ollama'):raise ValueError('Choose ChatGPT or local Ollama.')
+    if provider=='chatgpt':
+        grounded=[dict(m) for m in messages];grounded[-1]['content']+=gpt_context(messages[-1]['content'])
+        if not GPT:raise ChatGPTError('sign_in_required')
+        return GPT.respond_turn(grounded,instructions+'\nThis is conversation only: no PC or browser actions can be executed. Cite only supplied evidence.',setting('chat_model',''),[],on_text=on_text)
+    answer=ollama_request('/api/chat',{'model':MODEL,'messages':[{'role':'system','content':instructions}]+messages,'stream':False,'think':False,'keep_alive':'0'},timeout=300)
+    result=answer.get('message',{}).get('content','')
+    if not result:raise RuntimeError('Local model returned no text.')
+    on_text(result);return {'text':result,'calls':[],'output':[],'usage':{'input_tokens':answer.get('prompt_eval_count',0),'output_tokens':answer.get('eval_count',0)}}
 
 
 def pc_response(messages,instructions,tools):
@@ -343,7 +363,7 @@ def chat(content, backend=None):
 
 
 def claim_due(now=None):
-    if UPDATING.is_set():
+    if UPDATING.is_set() or ENGINE and ENGINE.setting('paused',0):
         return None
     now = time.time() if now is None else now
     with db() as c:
@@ -392,6 +412,7 @@ def state():
         return {
             'profile': {'name':setting('assistant_name','Nova'),'named':bool(setting('assistant_name','')),'onboarding_complete':setting('onboarding_complete')=='1'},
             'updates': UPDATER.state() if UPDATER else None,
+            'automation':ENGINE.state() if ENGINE else None,
             'providers': PROVIDERS,
             'pc_agent': {'mode': setting('pc_agent_mode','review'), 'enabled': setting('pc_agent_mode','review')!='off',
                          'jobs': PC.jobs() if PC else [], 'windows': os.name=='nt'},
@@ -476,7 +497,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('X-Frame-Options', 'DENY')
         self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         if cookie:
             self.send_header('Set-Cookie', cookie)
         self.end_headers()
@@ -495,10 +516,24 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200,{'application':'TREN','version':VERSION,'installation':installation,'controller':controller})
         if path == '/':
             return self.send(200, (ROOT / 'index.html').read_bytes(), 'text/html; charset=utf-8')
+        if path == '/ui_extensions.js':
+            return self.send(200,(ROOT/'ui_extensions.js').read_bytes(),'application/javascript; charset=utf-8')
         if path == '/favicon.ico':
             return self.send(204, b'', 'image/x-icon')
         if not self.authorized():
             return self.send(401, {'error': 'Enter the pairing code shown on your PC.'})
+        if path == '/api/automation/events':
+            if not ENGINE:return self.send(503,{'error':'Agent runtime not ready.'})
+            self.send_response(200);self.send_header('Content-Type','text/event-stream');self.send_header('Cache-Control','no-store');self.send_header('X-Accel-Buffering','no');self.end_headers()
+            previous=None
+            try:
+                while not STOP.wait(.5):
+                    if not self.authorized():break
+                    payload=json.dumps(ENGINE.state());digest=hashlib.sha256(payload.encode()).hexdigest()
+                    if digest!=previous:self.wfile.write(('data: '+payload+'\n\n').encode());self.wfile.flush();previous=digest
+                    else:self.wfile.write(b': heartbeat\n\n');self.wfile.flush()
+            except (BrokenPipeError,ConnectionResetError,OSError):pass
+            return
         if path == '/api/updates/state':
             return self.send(200, UPDATER.state())
         if path == '/api/state':
@@ -542,7 +577,7 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith('/api/updates/') and not self.authorized():
                 return self.send(401, {'error':'Pair your device first.'})
             length = int(self.headers.get('Content-Length', '0'))
-            limit = 24 * 1024 * 1024 if path == '/api/updates/upload' else 32768
+            limit = 24 * 1024 * 1024 if path in ('/api/updates/upload','/api/automation/restore','/api/voice/transcribe') else 32768
             if not 0 < length <= limit:
                 raise ValueError('Request too large or empty.')
             self.connection.settimeout(330)
@@ -598,6 +633,73 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(401, {'error': 'Pair your device first.'})
             if UPDATING.is_set():
                 raise ValueError('VEYRA is restarting for an update. Wait for it to reconnect.')
+            if path.startswith('/api/automation/'):
+                if not ENGINE:raise ValueError('Agent runtime is not ready.')
+                action=path.rsplit('/',1)[-1]
+                if action=='agent':return self.send(200,{'id':ENGINE.save_agent(body)})
+                if action=='chat':return self.send(202,{'id':ENGINE.submit(body.get('agent_id','default'),body.get('prompt'),chat=True,provider=body.get('provider') or setting('chat_backend','ollama'))})
+                if action=='submit':return self.send(202,{'id':ENGINE.submit(body.get('agent_id','default'),body.get('prompt'))})
+                if action=='cancel':ENGINE.cancel(body.get('id'));return self.send(200,{'ok':True})
+                if action=='approve':ENGINE.decide(body.get('id'),body.get('request_id'),body.get('digest'),body.get('allow'));return self.send(200,{'ok':True})
+                if action=='memory':return self.send(200,{'result':ENGINE.memory(body.get('agent_id','default'),body.get('operation','list'),body)})
+                if action=='workflow':return self.send(200,ENGINE.save_workflow(body))
+                if action=='run_workflow':
+                    with db() as c:workflow=c.execute('SELECT * FROM workflows WHERE id=?',(body.get('id'),)).fetchone()
+                    if not workflow:raise ValueError('Workflow not found.')
+                    return self.send(202,{'id':ENGINE.submit(workflow['agent_id'],workflow['prompt'],workflow_id=workflow['id'])})
+                if action=='browser_profile':
+                    agent=ENGINE.agent(body.get('agent_id','default'));return self.send(200,ENGINE.bridge.call('browser',{'profile':agent['project'],'action':'snapshot','headless':False}))
+                if action=='workspace':return self.send(200,ENGINE.preview(body.get('project','default'),body.get('path','')))
+                if action=='stop':
+                    ENGINE.stop_all()
+                    if PC and PC.active:PC.cancel(PC.active[0])
+                    if CODING:
+                        for job in CODING.jobs():
+                            if job['status'] in ('queued','running','cancelling'):CODING.cancel(job['id'])
+                    return self.send(200,{'ok':True,'paused':True})
+                if action=='resume':
+                    if body.get('confirmed') is not True:raise ValueError('Confirm resuming task execution and schedules.')
+                    ENGINE.set('paused',0);return self.send(200,{'ok':True})
+                if action=='continue':
+                    if body.get('confirmed') is not True:raise ValueError('Inspect completed and uncertain actions before continuing this task.')
+                    job=ENGINE.job(body.get('id'));return self.send(202,{'id':ENGINE.submit(job['agent_id'],body.get('prompt') or job['prompt'],resume=job['id'])})
+                if action=='limits':
+                    previous=ENGINE.setting('limits',{});ENGINE.set('limits',body.get('limits',{}))
+                    try:ENGINE.limits()
+                    except Exception:ENGINE.set('limits',previous);raise
+                    return self.send(200,{'ok':True})
+                if action=='connection':return self.send(200,ENGINE.save_connection(body))
+                if action=='test_connection':
+                    mid=body.get('id');return self.send(200,ENGINE.bridge.call('mcp',{'id':mid,'config':ENGINE.connection(mid,True),'operation':'list'}))
+                if action=='backup':return self.send(200,ENGINE.backup())
+                if action=='restore':return self.send(200,ENGINE.restore(body.get('backup',''),body.get('confirmed',False)))
+                if action=='notify':
+                    with db() as c:c.execute('UPDATE agent_notifications SET read=1 WHERE id=?',(body.get('id'),))
+                    return self.send(200,{'ok':True})
+                if action=='admin':
+                    if body.get('enable'):
+                        if setting('pc_agent_mode','review')!='auto':raise ValueError('Enable warned autonomous mode before the elevated worker.')
+                        return self.send(200,ENGINE.broker.enable(body.get('confirmed',False)))
+                    return self.send(200,ENGINE.broker.disable())
+                if action=='delete':
+                    table=body.get('kind');key=body.get('id')
+                    if table not in ('agents','workflows','mcp_connections'):raise ValueError('Invalid item type.')
+                    if table=='agents' and key=='default':raise ValueError('Keep the primary assistant.')
+                    if ENGINE.active:raise ValueError('Finish active work before deleting agents/connections/workflows.')
+                    with db() as c:
+                        c.execute('DELETE FROM '+table+' WHERE id=?',(key,))
+                        if table=='agents':c.execute('DELETE FROM agent_memory WHERE agent_id=?',(key,));c.execute('DELETE FROM workflows WHERE agent_id=?',(key,))
+                    if table=='mcp_connections':
+                        ENGINE.bridge.stop_all();(DATA/'connections'/(agent_runtime.identifier(key)+'.secret')).unlink(missing_ok=True)
+                    return self.send(200,{'ok':True})
+                raise ValueError('Unknown automation action.')
+            if path.startswith('/api/voice/'):
+                if not ENGINE:raise ValueError('Voice runtime is not ready.')
+                action=path.rsplit('/',1)[-1]
+                if action not in ('prepare','transcribe','speak','voices','stop'):raise ValueError('Unknown voice action.')
+                if action=='stop':ENGINE.bridge.cancel_method('voice');return self.send(200,{'ok':True})
+                result=ENGINE.bridge.call('voice',{**body,'operation':action},timeout=300)
+                return self.send(200,result)
             if path == '/api/profile':
                 name=text_field(body,'name',40)
                 if not all(ch.isalnum() or ch in " -_'." for ch in name):
@@ -605,11 +707,13 @@ class Handler(BaseHTTPRequestHandler):
                 completed=body.get('completed',False)
                 if not isinstance(completed,bool):raise ValueError('Setup completion must be true or false.')
                 set_setting('assistant_name',name)
+                if ENGINE:ENGINE.save_agent({'id':'default','name':name})
                 set_setting('onboarding_complete','1' if completed else '0')
                 return self.send(200,{'ok':True})
             if path == '/api/auto/route':
-                return self.send(200,auto_route(text_field(body,'message',6000)))
+                return self.send(200,auto_route(text_field(body,'message',6000),body.get('agent_id','default')))
             if path == '/api/pc/submit':
+                if ENGINE:return self.send(202,{'id':ENGINE.submit('default',text_field(body,'prompt',6000)),'provider':'chatgpt'})
                 if not PC or setting('pc_agent_mode','review')=='off':
                     raise ValueError('Enable PC agent in Settings first.')
                 if not GPT or GPT.state()['status']!='connected' or not GPT.state()['sharing']:
@@ -619,15 +723,22 @@ class Handler(BaseHTTPRequestHandler):
                     jid=PC.submit(text_field(body,'prompt',6000))
                 return self.send(202,{'id':jid, 'provider':'chatgpt'})
             if path == '/api/pc/cancel':
-                PC.cancel(text_field(body,'id',64));return self.send(200,{'ok':True})
+                jid=text_field(body,'id',64)
+                if ENGINE and jid in ENGINE.active:ENGINE.cancel(jid)
+                else:PC.cancel(jid)
+                return self.send(200,{'ok':True})
             if path == '/api/pc/approve':
-                PC.decide(body.get('id'),body.get('request_id'),body.get('digest'),body.get('allow'))
+                manager=ENGINE if ENGINE and body.get('id') in ENGINE.pending else PC
+                manager.decide(body.get('id'),body.get('request_id'),body.get('digest'),body.get('allow'))
                 return self.send(200,{'ok':True})
             if path == '/api/pc/settings':
                 mode=body.get('mode')
-                if mode not in ('off','inspect','review'):raise ValueError('Invalid PC agent mode.')
+                if mode not in ('off','inspect','review','auto'):raise ValueError('Invalid PC agent mode.')
+                if mode=='auto' and body.get('confirmed') is not True:raise ValueError('Confirm the warning before enabling approval-free whole-PC access.')
                 previous=setting('pc_agent_mode','review')
                 set_setting('pc_agent_mode',mode)
+                if ENGINE and mode!=previous:ENGINE.stop_all(pause=False)
+                if ENGINE and mode!='auto' and ENGINE.broker:ENGINE.broker.cancel_all()
                 if PC and PC.active and mode!=previous:PC.cancel(PC.active[0])
                 return self.send(200,{'ok':True})
             if path == '/api/devices/revoke':
@@ -657,6 +768,7 @@ class Handler(BaseHTTPRequestHandler):
                 begin_update(self.server, body.get('rollback', False))
                 return self.send(202, {'ok':True, 'restarting':True})
             if path == '/api/codex/submit':
+                if ENGINE and ENGINE.setting('paused',0):raise ValueError('Execution is paused. Resume in the task inbox.')
                 if setting('coding_backend', 'codex') != 'codex':
                     raise ValueError('Enable Codex in Coding settings first.')
                 return self.send(202, {'id': CODING.submit(body), 'provider': 'codex'})
@@ -778,6 +890,7 @@ def begin_update(server, do_rollback=False):
     try:
         if GPT and GPT.connecting:
             raise ValueError('Finish or cancel ChatGPT sign-in before updating.')
+        if ENGINE and ENGINE.active:raise ValueError('Finish or stop active agent work before updating.')
         with CODING.lock, (PC.lock if PC else contextlib.nullcontext()):
             if PC and PC.active:
                 raise ValueError('Finish or cancel the PC agent task before updating.')
@@ -823,7 +936,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-browser', action='store_true')
     args = parser.parse_args()
-    global CODING, UPDATER, GPT, PC
+    global CODING, UPDATER, GPT, PC, ENGINE
     # Reserve the port before touching job state. A second instance must not
     # interrupt the first instance's coding/PC jobs during initialization.
     try:
@@ -835,8 +948,11 @@ def main():
     GPT = ChatGPT(DATA, lambda: set_setting('chat_backend', 'chatgpt'))
     PC = codex_tasks.PCManager(db,DATA,pc_response,pc_context,use_web_tool,
                              lambda: setting('pc_agent_mode','review'))
+    ENGINE = agent_runtime.Engine(db,DATA,pc_response,lambda:setting('pc_agent_mode','review'),use_web_tool,broker=admin_broker.Broker(DATA),gaming=lambda:setting('gaming')=='1',stream_response=agent_response_stream,chat_response=agent_chat_response,cancel_response=GPT.cancel_requests)
+    ENGINE.save_agent({'id':'default','name':setting('assistant_name','Nova')})
+    ENGINE.start()
     UPDATER = update_runtime.Manager(ROOT, DATA, setting, set_setting)
-    CODING = codex_tasks.Manager(db, DATA, lambda: setting('gaming') == '1')
+    CODING = codex_tasks.Manager(db, DATA, lambda: setting('gaming') == '1' or ENGINE and ENGINE.setting('paused',0))
     CODING.start()
     hosts = {f'127.0.0.1:{PORT}', f'localhost:{PORT}'}
     host_file = ROOT / 'allowed-hosts.txt'
@@ -855,6 +971,7 @@ def main():
         print('\nStopping. Queued and running work will not continue while the PC is off.')
     finally:
         STOP.set()
+        if ENGINE:ENGINE.close()
         GPT.cancel_sign_in()
         PC.close()
         CODING.close()
