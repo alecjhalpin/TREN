@@ -464,5 +464,17 @@ class AssistantTests(unittest.TestCase):
         self.assertFalse(thread.is_alive());self.assertIsInstance(errors[0],InterruptedError);self.assertFalse(a.OLLAMA_REQUESTS)
 
 
+    def test_default_agent_rename_keeps_profile_name_after_restart_sync(self):
+        import agent_runtime
+        engine=agent_runtime.Engine(a.db,a.DATA,lambda *args:{'text':'fixture','calls':[],'output':[]},lambda:'off')
+        try:
+            with patch.object(a,'ENGINE',engine):
+                self.login();status,result,_=self.request('/api/automation/agent',{'id':'default','name':'My Nova'})
+                self.assertEqual(status,200,result);self.assertEqual(a.setting('assistant_name'),'My Nova')
+                engine.save_agent({'id':'default','name':a.setting('assistant_name','Nova')})
+                self.assertEqual(engine.agent('default')['name'],'My Nova')
+        finally:engine.close()
+
+
 if __name__ == '__main__':
     unittest.main()

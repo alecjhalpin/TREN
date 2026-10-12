@@ -670,7 +670,11 @@ class Handler(BaseHTTPRequestHandler):
             if path.startswith('/api/automation/'):
                 if not ENGINE:raise ValueError('Agent runtime is not ready.')
                 action=path.rsplit('/',1)[-1]
-                if action=='agent':return self.send(200,{'id':ENGINE.save_agent(body)})
+                if action=='agent':
+                    if body.get('id')=='default' and 'name' in body:body['name']=text_field(body,'name',40)
+                    aid=ENGINE.save_agent(body)
+                    if aid=='default':set_setting('assistant_name',ENGINE.agent(aid)['name'])
+                    return self.send(200,{'id':aid})
                 if action=='chat':return self.send(202,{'id':ENGINE.submit(body.get('agent_id','default'),body.get('prompt'),chat=True,provider=body.get('provider') or setting('chat_backend','ollama'))})
                 if action=='submit':return self.send(202,{'id':ENGINE.submit(body.get('agent_id','default'),body.get('prompt'))})
                 if action=='cancel':ENGINE.cancel(body.get('id'));return self.send(200,{'ok':True})
