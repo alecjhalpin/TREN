@@ -52,6 +52,18 @@ jobs:
         env:
           VEYRA_TOOLS_ROOT: ${{ github.workspace }}/desktop/resources/tool-runtime
         run: node --test test.mjs
+      - name: Real local voice and elevated program acceptance
+        shell: pwsh
+        run: |
+          $env:VEYRA_TOOLS_ROOT = (Resolve-Path 'desktop/resources/tool-runtime').Path
+          $env:TREN_NODE = (Resolve-Path 'desktop/resources/node/node.exe').Path
+          $env:VEYRA_NPM_CLI = (Resolve-Path 'desktop/resources/node/node_modules/npm/bin/npm-cli.js').Path
+          $env:VEYRA_MODEL_ACCEPTANCE = '1'
+          $env:VEYRA_ADMIN_ACCEPTANCE = '1'
+          python -m unittest discover -s tests -p test_voice_acceptance.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_admin_acceptance.py -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install locked desktop dependencies
         working-directory: desktop
         run: npm ci

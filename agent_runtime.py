@@ -12,7 +12,8 @@ class UncertainAction(RuntimeError):pass
 
 ACTIVE={'queued','running','awaiting_approval','waiting_children','cancelling'}
 FAMILIES={'pc','browser','mcp','memory','delegate','workflow'}
-BROWSER_READ={'snapshot','extract','tabs','attribute','count','console','network'}
+BROWSER_READ={'navigate','open','snapshot','extract','tabs','attribute','count','console','network','scroll','wait','back','forward','reload','screenshot','new_tab','close_tab','close'}
+PORTABLE_SETTINGS={'assistant_name','onboarding_complete','chat_backend','chat_model','ollama_fallback','coding_backend','web_enabled'}
 DEFAULT_LIMITS={'concurrency':4,'calls':80,'seconds':1800,'depth':6,'agents':24,'context_chars':180000}
 PRESETS={
  'assistant':{'name':'PC Assistant','instructions':'Be direct, warm, conversational and helpful. Match the user’s energy without forced enthusiasm. Solve the requested task and verify actual results. Use scoped memory for explicit facts worth remembering.','tools':sorted(FAMILIES)},
@@ -159,6 +160,8 @@ class Engine:
         target=self.workspace(project,path)
         if target.is_dir():return {'path':str(target),'entries':[{'name':p.name,'directory':p.is_dir(),'bytes':p.stat().st_size if p.is_file() else None} for p in sorted(target.iterdir(),key=lambda x:(not x.is_dir(),x.name.lower()))[:500] if not p.is_symlink()]}
         if not target.is_file() or target.stat().st_size>1000000:raise ValueError('Preview needs an existing file under 1 MB.')
+        mime={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif'}.get(target.suffix.lower())
+        if mime:return {'path':str(target),'image':'data:'+mime+';base64,'+base64.b64encode(target.read_bytes()).decode(),'text':''}
         return {'path':str(target),'text':ct.redact(target.read_text(encoding='utf-8',errors='replace'))}
     def memory(self,aid,operation,body):
         self.agent(aid)
@@ -188,11 +191,13 @@ class Engine:
         when=next_cron(cron,timezone=zone)
         with self.db() as c:c.execute('INSERT OR REPLACE INTO workflows VALUES(?,?,?,?,?,?,?,?,NULL,?)',(wid,text(b.get('name'),100),aid,text(b.get('prompt')),cron,zone,int(enabled),when,time.time()))
         return {'id':wid,'next_run':when}
-    def job(self,jid):
-        with self.db() as c:r=c.execute('SELECT * FROM agent_jobs WHERE id=?',(identifier(jid),)).fetchone()
+    def job(self,jid,public=False):
+        columns='id,agent_id,parent_id,root_id,depth,status,prompt,result,steps,permissions,usage,created,finished,workflow_id' if public else '*'
+        with self.db() as c:r=c.execute('SELECT '+columns+' FROM agent_jobs WHERE id=?',(identifier(jid),)).fetchone()
         if not r:raise ValueError('Task not found.')
         out=dict(r)
-        for key in ('steps','checkpoint','permissions','usage'):out[key]=json.loads(out[key])
+        for key in ('steps','checkpoint','permissions','usage'):
+            if key in out:out[key]=json.loads(out[key])
         return out
     def update(self,jid,**values):
         if set(values)-{'status','result','steps','checkpoint','usage','finished'}:raise ValueError('Invalid job update.')
@@ -328,11 +333,12 @@ class Engine:
         if name=='workflow':return args.get('operation','list')!='list'
         return False
     def run(self,jid,agent,cancel,budget,permission,checkpoint):
-        steps=[];usage={};collected=set();status='failed';result='';messages=checkpoint['messages'];seen=set(checkpoint['seen']);mutations=set(checkpoint['mutations'])
+        steps=[];usage={};collected=set();status='failed';result='';response_provider=permission['provider'];messages=checkpoint['messages'];seen=set(checkpoint['seen']);mutations=set(checkpoint['mutations'])
         cancelled=lambda:cancel.is_set() or budget.cancel.is_set() or self.closed.is_set()
         try:
             # Queue waiting is cancellable and shares runtime budget; never occupy a parent waiting on a child.
             while True:
+                if cancelled():raise InterruptedError()
                 with self.lock:
                     running=sum(1 for k in self.active if self.job(k)['status'] in ('running','awaiting_approval'))
                     occupied=any(k!=jid and self.job(k)['agent_id']==agent['id'] and self.job(k)['status'] in ('running','awaiting_approval','waiting_children') for k in self.active)
@@ -362,6 +368,7 @@ class Engine:
                 elif self.stream_response:answer=self.stream_response(messages,instructions,self.schemas(permission),on_text)
                 else:answer=self.response(messages,instructions,self.schemas(permission))
                 if cancelled():raise InterruptedError()
+                response_provider=answer.get('provider',response_provider)
                 for key in ('input_tokens','output_tokens','total_tokens'):
                     v=(answer.get('usage') or {}).get(key)
                     if type(v) is int and v>=0:usage[key]=usage.get(key,0)+v
@@ -420,9 +427,11 @@ class Engine:
         except PermissionError as error:status='denied';result=str(error)
         except Exception as error:status='failed';result=ct.redact(str(error))[:6000]
         finally:
-            self.update(jid,status=status,result=result,steps=steps,usage=usage,finished=time.time())
-            with self.db() as c:c.execute('INSERT INTO agent_messages(agent_id,role,content,provider,created,job_id) VALUES(?,?,?,?,?,?)',(agent['id'],'assistant',result if permission.get('chat') else '[Task '+status+'] '+result,permission['provider'],time.time(),jid))
-            with self.lock:self.pending.pop(jid,None);self.active.pop(jid,None)
+            with self.lock:
+                if cancelled() and status!='uncertain':status='cancelled';result='Cancelled. Completed changes remain; inspect action evidence before retrying.'
+                self.update(jid,status=status,result=result,steps=steps,usage=usage,finished=time.time())
+                self.pending.pop(jid,None);self.active.pop(jid,None)
+            with self.db() as c:c.execute('INSERT INTO agent_messages(agent_id,role,content,provider,created,job_id) VALUES(?,?,?,?,?,?)',(agent['id'],'assistant',result if permission.get('chat') else '[Task '+status+'] '+result,response_provider,time.time(),jid))
             with self.db() as c:c.execute('INSERT INTO agent_notifications VALUES(?,?,?,?,0)',(secrets.token_hex(12),jid,agent['name']+' · '+status,time.time()))
             with self.lock:
                 root=self.job(jid)['root_id']
@@ -467,7 +476,7 @@ class Engine:
     def state(self):
         with self.db() as c:
             agents=[self.agent(r['id']) for r in c.execute('SELECT id FROM agents ORDER BY created')]
-            jobs=[self.job(r['id']) for r in c.execute('SELECT id FROM agent_jobs ORDER BY created DESC LIMIT 100')]
+            jobs=[self.job(r['id'],public=True) for r in c.execute('SELECT id FROM agent_jobs ORDER BY created DESC LIMIT 100')]
             workflows=[dict(r) for r in c.execute('SELECT * FROM workflows ORDER BY created DESC')]
             connections=[self.connection(r['id']) for r in c.execute('SELECT id FROM mcp_connections')]
             messages=[dict(r) for r in c.execute('SELECT * FROM (SELECT * FROM agent_messages ORDER BY id DESC LIMIT 300) ORDER BY id')]
@@ -505,7 +514,10 @@ class Engine:
         with self.db() as c:
             snapshot={table:[dict(r) for r in c.execute('SELECT * FROM '+table)] for table in ('agents','agent_memory','workflows','runtime_settings')}
         # Auth, MCP credentials, browser cookies and elevated-worker credentials never leave the PC.
-        payload={'format':'veyra-backup-1','created':time.time(),'tables':snapshot}
+        preferences={}
+        with self.db() as c:
+            if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").fetchone():preferences={r['key']:r['value'] for r in c.execute('SELECT key,value FROM settings') if r['key'] in PORTABLE_SETTINGS}
+        payload={'format':'veyra-backup-1','created':time.time(),'tables':snapshot,'preferences':preferences}
         return {'backup':base64.b64encode(json.dumps(payload).encode()).decode(),'filename':'VEYRA-backup-'+time.strftime('%Y%m%d-%H%M%S')+'.json'}
     def restore(self,encoded,confirmed=False):
         if not confirmed:raise ValueError('Confirm restore. Restored schedules and autonomous access will remain disabled.')
@@ -514,7 +526,15 @@ class Engine:
         if len(raw)>8*1024*1024:raise ValueError('Backup exceeds 8 MiB.')
         payload=json.loads(raw)
         if payload.get('format')!='veyra-backup-1':raise ValueError('Unsupported backup format.')
-        tables=payload.get('tables',{});self.stop_all()
+        tables=payload.get('tables',{});preferences=payload.get('preferences',{})
+        if not isinstance(preferences,dict) or set(preferences)-PORTABLE_SETTINGS:raise ValueError('Invalid backup preferences.')
+        for key,value in preferences.items():
+            text(value,200,empty=True)
+            if key in ('onboarding_complete','ollama_fallback','web_enabled') and value not in ('0','1'):raise ValueError('Invalid boolean preference.')
+            if key=='chat_backend' and value not in ('chatgpt','ollama'):raise ValueError('Invalid provider.')
+            if key=='coding_backend' and value not in ('codex','disabled'):raise ValueError('Invalid coding provider.')
+        self.stop_all()
+        if self.broker:self.broker.disable()
         # Validate everything before committing; merge by ID, keeping existing secrets untouched.
         for table,rows in tables.items():
             if table not in {'agents','agent_memory','workflows','runtime_settings'} or not isinstance(rows,list) or len(rows)>10000:raise ValueError('Invalid backup tables.')
@@ -523,9 +543,12 @@ class Engine:
             if row.get('key')=='limits':
                 value=json.loads(row['value'])
                 if not isinstance(value,dict) or set(value)-set(DEFAULT_LIMITS):raise ValueError('Invalid restored limits.')
-                bounds={'concurrency':(1,16),'calls':(1,10000),'seconds':(30,86400),'depth':(1,20),'agents':(1,1000),'context_chars':(4000,1000000)}
+                bounds={'concurrency':(1,16),'calls':(4,1000),'seconds':(30,14400),'depth':(0,16),'agents':(1,100),'context_chars':(10000,500000)}
                 restored_limits={key:number(value.get(key,default),*bounds[key]) for key,default in DEFAULT_LIMITS.items()}
         with self.db() as c:
+            if c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='settings'").fetchone():
+                for key,value in preferences.items():c.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',(key,value))
+                c.execute("INSERT OR REPLACE INTO settings VALUES('pc_agent_mode','review')")
             if restored_limits is not None:c.execute("INSERT OR REPLACE INTO runtime_settings VALUES('limits',?)",(json.dumps(restored_limits),))
             for row in tables.get('agents',[]):
                 identifier(row['id']);identifier(row['project']);text(row['name'],80);text(row['instructions'],12000)

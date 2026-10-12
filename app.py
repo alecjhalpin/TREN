@@ -198,14 +198,20 @@ def agent_response_stream(messages,instructions,tools,on_text):
 
 def agent_chat_response(messages,instructions,provider,on_text):
     if provider not in ('chatgpt','ollama'):raise ValueError('Choose ChatGPT or local Ollama.')
+    fallback_error=None
     if provider=='chatgpt':
-        grounded=[dict(m) for m in messages];grounded[-1]['content']+=gpt_context(messages[-1]['content'])
-        if not GPT:raise ChatGPTError('sign_in_required')
-        return GPT.respond_turn(grounded,instructions+'\nThis is conversation only: no PC or browser actions can be executed. Cite only supplied evidence.',setting('chat_model',''),[],on_text=on_text)
+        try:
+            grounded=[dict(m) for m in messages];grounded[-1]['content']+=gpt_context(messages[-1]['content'])
+            if not GPT:raise ChatGPTError('sign_in_required')
+            answer=GPT.respond_turn(grounded,instructions+'\nThis is conversation only: no PC or browser actions can be executed. Cite only supplied evidence.',setting('chat_model',''),[],on_text=on_text);answer['provider']='chatgpt';return answer
+        except ChatGPTError as error:
+            if setting('ollama_fallback')!='1':raise
+            fallback_error=str(error)
     answer=ollama_request('/api/chat',{'model':MODEL,'messages':[{'role':'system','content':instructions}]+messages,'stream':False,'think':False,'keep_alive':'0'},timeout=300)
     result=answer.get('message',{}).get('content','')
     if not result:raise RuntimeError('Local model returned no text.')
-    on_text(result);return {'text':result,'calls':[],'output':[],'usage':{'input_tokens':answer.get('prompt_eval_count',0),'output_tokens':answer.get('eval_count',0)}}
+    if fallback_error:result='Ollama fallback — '+fallback_error+'\n\n'+result
+    on_text(result);return {'text':result,'calls':[],'output':[],'provider':'ollama','usage':{'input_tokens':answer.get('prompt_eval_count',0),'output_tokens':answer.get('eval_count',0)}}
 
 
 def pc_response(messages,instructions,tools):

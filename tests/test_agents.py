@@ -1,4 +1,4 @@
-import datetime,json,sqlite3,tempfile,threading,time,unittest
+import base64,datetime,json,sqlite3,tempfile,threading,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 from agent_runtime import Engine,Budget,cron_matches,next_cron,DEFAULT_LIMITS
@@ -73,3 +73,36 @@ class AgentTests(unittest.TestCase):
   self.assertIn('Keep me',self.engine.context_memory('default'));self.assertTrue(self.engine.state()['paused']);self.assertFalse(self.engine.state()['workflows'][0]['enabled'])
  def test_workspace_traversal_and_links(self):
   with self.assertRaises(ValueError):self.engine.preview('default','../../outside')
+ def test_nested_cancel_stops_descendants_but_not_parent(self):
+  gate=threading.Event()
+  def response(*args):
+   gate.wait(3)
+   return {'text':'finished','calls':[],'output':[]}
+  self.response=response
+  self.engine.save_agent({'id':'child','project':'child','name':'Child'})
+  self.engine.save_agent({'id':'grandchild','project':'grandchild','name':'Grandchild'})
+  parent=self.engine.submit('default','Parent mission')
+  child=self.engine.submit('child','Child mission',parent=parent)
+  grandchild=self.engine.submit('grandchild','Grandchild mission',parent=child)
+  self.engine.cancel(child)
+  self.assertFalse(self.engine.active[parent]['cancel'].is_set())
+  self.assertTrue(self.engine.active[child]['cancel'].is_set())
+  self.assertTrue(self.engine.active[grandchild]['cancel'].is_set())
+  gate.set()
+  self.assertEqual(self.wait(child)['status'],'cancelled')
+  self.assertEqual(self.wait(grandchild)['status'],'cancelled')
+ def test_backup_restores_portable_settings_and_limits_without_secrets(self):
+  with self.db() as c:
+   c.execute('CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT)')
+   c.executemany('INSERT INTO settings VALUES(?,?)',[('assistant_name','Nova'),('chat_backend','chatgpt'),('pc_agent_mode','auto'),('private_token','must stay private')])
+  limits={**DEFAULT_LIMITS,'concurrency':2};self.engine.set('limits',limits)
+  exported=self.engine.backup();payload=json.loads(base64.b64decode(exported['backup']))
+  self.assertNotIn('private_token',payload['preferences']);self.assertNotIn('pc_agent_mode',payload['preferences'])
+  with self.db() as c:c.execute("UPDATE settings SET value='Changed' WHERE key='assistant_name'")
+  self.engine.set('limits',{**DEFAULT_LIMITS,'concurrency':3})
+  self.engine.restore(exported['backup'],True)
+  self.assertEqual(self.engine.limits()['concurrency'],2)
+  with self.db() as c:
+   self.assertEqual(c.execute("SELECT value FROM settings WHERE key='assistant_name'").fetchone()[0],'Nova')
+   self.assertEqual(c.execute("SELECT value FROM settings WHERE key='pc_agent_mode'").fetchone()[0],'review')
+   self.assertEqual(c.execute("SELECT value FROM settings WHERE key='private_token'").fetchone()[0],'must stay private')

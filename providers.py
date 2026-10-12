@@ -435,6 +435,7 @@ class ChatGPT:
         return self.respond_turn(messages, instructions, model)
 
     def respond_turn(self, messages, instructions, model='', tools=None, on_text=None):
+        response=None
         try:
             # Refresh/catalog writes are serialized. Independent agent response streams are not.
             with self.lock:
@@ -452,18 +453,22 @@ class ChatGPT:
             with self.lock:self.error=None
             return result
         except ChatGPTError as error:
+            if getattr(response,'veyra_cancelled',False):raise InterruptedError('Response cancelled.') from None
             with self.lock:self.error=error
             raise
         except OSError:
+            if getattr(response,'veyra_cancelled',False):raise InterruptedError('Response cancelled.') from None
             with self.lock:self.error=ChatGPTError('network_error')
             raise self.error from None
         except (ValueError,TypeError,AttributeError):
+            if getattr(response,'veyra_cancelled',False):raise InterruptedError('Response cancelled.') from None
             with self.lock:self.error=ChatGPTError('response_format_error')
             raise self.error from None
 
     def cancel_requests(self,tag=None):
         with self.requests_lock:responses=[r for r,name in self.requests.items() if tag is None or name==tag]
         for response in responses:
+            response.veyra_cancelled=True
             try:
                 sock=getattr(getattr(getattr(response,'fp',None),'raw',None),'_sock',None)
                 if sock:sock.shutdown(__import__('socket').SHUT_RDWR)
