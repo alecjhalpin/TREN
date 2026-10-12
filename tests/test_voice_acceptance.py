@@ -12,12 +12,12 @@ class VoiceAcceptance(unittest.TestCase):
     result=bridge.call('voice',{'operation':'speak','text':'Hello. Your assistant is ready. What would you like to work on?','voice':'af_heart'},timeout=600)
     self.assertTrue(list((Path(directory)/'voice_models/onnx-community/Kokoro-82M-v1.0-ONNX').rglob('*.onnx')),'Speech preview must cache under data before any transcription/setup')
     if os.name=='nt':
-     executable=Path(bridge.proc.args[0]).resolve();private=str(executable.parent).lower()+os.sep
+     executable=Path(bridge.proc.args[0]).resolve();private=[str(executable.parent).lower()+os.sep,str(Path(os.environ['VEYRA_TOOLS_ROOT'])/'node_modules/onnxruntime-node/bin/napi-v3/win32/x64').lower()+os.sep]
      command="(Get-Process -Id "+str(bridge.proc.pid)+").Modules | Where-Object {$_.ModuleName -in @('msvcp140.dll','msvcp140_1.dll','vcruntime140.dll','vcruntime140_1.dll')} | Select-Object -ExpandProperty FileName | ConvertTo-Json -Compress"
      probe=subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',command],capture_output=True,text=True,timeout=20)
      self.assertEqual(probe.returncode,0,probe.stderr);loaded=json.loads(probe.stdout)
      if isinstance(loaded,str):loaded=[loaded]
-     self.assertTrue(loaded);self.assertTrue(all(name.lower().startswith(private) for name in loaded),loaded)
+     self.assertTrue(loaded);self.assertTrue(all(any(name.lower().startswith(root) for root in private) for name in loaded),loaded)
      self.assertIn('msvcp140.dll',{Path(name).name.lower() for name in loaded})
      print('Verified native voice loads private Microsoft C++ runtime:',[Path(name).name for name in loaded])
     wav=base64.b64decode(result['wav']);self.assertEqual(wav[:4],b'RIFF');self.assertGreater(len(wav),10000)

@@ -68,6 +68,7 @@ for file in files:
     script="$s=Get-AuthenticodeSignature "+literal+"; if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation'){throw 'Untrusted Visual C++ runtime file'}"
     subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',script],check=True)
     shutil.copy2(file,DEST/'node'/file.name)
+    shutil.copy2(file,onnx/'win32'/'x64'/file.name)
     records.append({'file':file.name,'sha256':hashlib.sha256(file.read_bytes()).hexdigest()})
 (DEST/'node'/'veyra-crt-provenance.json').write_text(json.dumps({'publisher':'Microsoft Corporation','source':'Visual Studio licensed REDIST/MSVC x64 CRT','version':crt.parents[1].name,'files':records},indent=2))
 (DEST/'node'/'Microsoft-CRT-NOTICE.txt').write_text('Microsoft Visual C++ Runtime. Copyright Microsoft Corporation. Redistributable runtime files are deployed app-locally from the Visual Studio REDIST directory. Redistribution information: https://learn.microsoft.com/visualstudio/releases/2022/redistribution and https://learn.microsoft.com/cpp/windows/redistributing-visual-cpp-files . These files retain their Microsoft signatures and are not licensed under VEYRA or Golemancy notices.\n')
