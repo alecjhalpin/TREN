@@ -9,7 +9,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 const dependencies=createRequire(path.join(process.env.VEYRA_TOOLS_ROOT||path.dirname(fileURLToPath(import.meta.url)),'package.json'));
 const dependency=async name=>{const m=await import(pathToFileURL(dependencies.resolve(name)).href);return m.default&&typeof m.default==='object'?{...m.default,...m}:m};
 import {buildPageSnapshot} from './snapshot.mjs';
-const data=path.resolve(process.env.VEYRA_DATA||'data'),requests=new Map(),browsers=new Map(),browserLaunches=new Map(),mcpPool=new Map();
+const data=path.resolve(process.env.VEYRA_DATA||'data'),requests=new Map(),browsers=new Map(),browserLaunches=new Map(),browserClosures=new Map(),mcpPool=new Map();
 let asrPromise,ttsPromise;const pendingVoiceFiles=new Set();
 const voiceCache=path.join(data,'voice_models'),voiceLedger=path.join(voiceCache,'.downloads-pending.json');
 function validVoiceFile(file){return typeof file==='string'&&/^onnx-community\/(?:whisper-base|Kokoro-82M-v1\.0-ONNX)\/[A-Za-z0-9_./-]+$/.test(file)&&!file.split('/').includes('..')}
@@ -27,7 +27,11 @@ const fingerprint=x=>crypto.createHash('sha256').update(JSON.stringify(x)).diges
 const line=readline.createInterface({input:process.stdin,crlfDelay:Infinity});
 const output=(id,result,error)=>process.stdout.write(JSON.stringify({id,...(error?{error:String(error.message||error).slice(0,3000)}:{result})})+'\n');
 function check(signal){if(signal.aborted)throw Error('Cancelled')}
-async function closeBrowser(key){const entry=browsers.get(key);browsers.delete(key);if(entry)await entry.context.close().catch(()=>{})}
+function closeBrowser(key){
+ if(browserClosures.has(key))return browserClosures.get(key);
+ const entry=browsers.get(key);browsers.delete(key);if(!entry)return Promise.resolve();
+ const closing=entry.context.close().catch(()=>{}).finally(()=>browserClosures.delete(key));browserClosures.set(key,closing);return closing;
+}
 async function browser(p,signal){
  const profile=safeId(p.profile||'default');check(signal);
  const options=p.options||{},action=p.action;
@@ -150,7 +154,7 @@ async function voice(params,signal){
  const audio=new Float32Array(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));if(audio.some(v=>!Number.isFinite(v)||Math.abs(v)>1.1))throw Error('Invalid microphone audio');
  const result=await recognizer(audio,{chunk_length_s:30,stride_length_s:5,...(params.language?{language:params.language,task:'transcribe'}:{})});check(signal);return {text:result.text,model:'Whisper base',local:true};
 }
-async function stopAll(){for(const controller of requests.values())controller.abort();for(const key of browsers.keys())await closeBrowser(key);for(const entry of mcpPool.values())await entry.connection.close();mcpPool.clear()}
+async function stopAll(){for(const controller of requests.values())controller.abort();await Promise.allSettled([...browserLaunches.values()]);await Promise.all([...browsers.keys()].map(closeBrowser));await Promise.all([...browserClosures.values()]);for(const entry of mcpPool.values())await entry.connection.close();mcpPool.clear()}
 line.on('line',async text=>{let packet;try{if(text.length>12*1024*1024)throw Error('Oversized tool packet');packet=JSON.parse(text);const {id,method,params={}}=packet;if(method==='cancel'){requests.get(params.request_id)?.abort();return output(id,{ok:true})}if(method==='stop_all'){await stopAll();return output(id,{ok:true})}const controller=new AbortController();requests.set(id,controller);try{const result=method==='browser'?await browser(params,controller.signal):method==='mcp'?await mcp(params,controller.signal):method==='voice'?await voice(params,controller.signal):method==='health'?{node:process.version,browsers:browsers.size,mcp:mcpPool.size}:null;if(result===null)throw Error('Unknown local tool');output(id,result)}finally{requests.delete(id)}}catch(error){output(packet?.id,error?null:undefined,error)}});
 line.on('close',async()=>{await stopAll();process.exit(0)});
 setInterval(()=>{for(const [id,entry] of mcpPool)if(Date.now()-entry.connection.last>15*60000){entry.connection.close();mcpPool.delete(id)}},60000).unref();
