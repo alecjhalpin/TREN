@@ -66,7 +66,8 @@ records=[]
 for file in files:
     literal="'"+str(file).replace("'","''")+"'"
     script="$s=Get-AuthenticodeSignature "+literal+"; if($s.Status -ne 'Valid' -or $s.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation'){throw 'Untrusted Visual C++ runtime file'}"
-    subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',script],check=True)
+    signature_env=dict(os.environ);signature_env.pop('PSModulePath',None)
+    subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',script],check=True,env=signature_env)
     shutil.copy2(file,DEST/'node'/file.name)
     shutil.copy2(file,onnx/'win32'/'x64'/file.name)
     records.append({'file':file.name,'sha256':hashlib.sha256(file.read_bytes()).hexdigest()})
