@@ -76,7 +76,8 @@ print(json.dumps({'type':'turn.completed','usage':{'input_tokens':10}}),flush=Tr
         while jid not in self.m.active and time.monotonic()<end: time.sleep(.02)
         self.assertIn(jid,self.m.active)
         self.m.cancel(jid)
-        end=time.monotonic()+5
+        # stop_process allows up to ten seconds to reap a process on a busy runner.
+        end=time.monotonic()+15
         while self.m.jobs()[0]['status']!='cancelled' and time.monotonic()<end: time.sleep(.02)
         self.assertEqual(self.m.jobs()[0]['status'],'cancelled')
 
