@@ -9,8 +9,18 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 const dependencies=createRequire(path.join(process.env.VEYRA_TOOLS_ROOT||path.dirname(fileURLToPath(import.meta.url)),'package.json'));
 const dependency=async name=>{const m=await import(pathToFileURL(dependencies.resolve(name)).href);return m.default&&typeof m.default==='object'?{...m.default,...m}:m};
 import {buildPageSnapshot} from './snapshot.mjs';
-const data=path.resolve(process.env.VEYRA_DATA||'data'),requests=new Map(),browsers=new Map(),mcpPool=new Map();
-let asrPromise,ttsPromise;
+const data=path.resolve(process.env.VEYRA_DATA||'data'),requests=new Map(),browsers=new Map(),browserLaunches=new Map(),mcpPool=new Map();
+let asrPromise,ttsPromise;const pendingVoiceFiles=new Set();
+const voiceCache=path.join(data,'voice_models'),voiceLedger=path.join(voiceCache,'.downloads-pending.json');
+function validVoiceFile(file){return typeof file==='string'&&/^onnx-community\/(?:whisper-base|Kokoro-82M-v1\.0-ONNX)\/[A-Za-z0-9_./-]+$/.test(file)&&!file.split('/').includes('..')}
+// A killed download must never be mistaken for a complete cached model.
+if(fs.existsSync(voiceLedger)){try{const files=JSON.parse(fs.readFileSync(voiceLedger,'utf8'));if(Array.isArray(files)&&files.length<=256)for(const file of files){if(validVoiceFile(file)){const target=path.resolve(voiceCache,file);if(target.startsWith(voiceCache+path.sep))fs.rmSync(target,{force:true})}}}catch{}fs.rmSync(voiceLedger,{force:true})}
+function voiceProgress(event){
+ const file=event.name+'/'+event.file;if(!validVoiceFile(file))return;
+ if(event.status==='download'&&!fs.existsSync(path.join(voiceCache,file)))pendingVoiceFiles.add(file);
+ else if(event.status==='done')pendingVoiceFiles.delete(file);else return;
+ fs.mkdirSync(voiceCache,{recursive:true});const temporary=voiceLedger+'.new';fs.writeFileSync(temporary,JSON.stringify([...pendingVoiceFiles]));fs.renameSync(temporary,voiceLedger);
+}
 const safeId=x=>{if(typeof x!=='string'||!/^[-a-zA-Z0-9_]{1,64}$/.test(x))throw Error('Invalid profile or connection identifier');return x};
 const bounded=x=>JSON.stringify(x).slice(0,180000);
 const fingerprint=x=>crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex');
@@ -23,14 +33,20 @@ async function browser(p,signal){
  const options=p.options||{},action=p.action;
  if(action==='close'){await closeBrowser(profile);return {ok:true}}
  let entry=browsers.get(profile);
+ if(entry&&p.headless===false&&entry.headless){await closeBrowser(profile);entry=null}
+ if(!entry&&browserLaunches.has(profile))entry=await browserLaunches.get(profile);
  if(!entry){
+  const launchPending=(async()=>{
   const {chromium}=await dependency('playwright');const folder=path.join(data,'browser_profiles',profile);fs.mkdirSync(folder,{recursive:true});
   const launch={headless:p.headless!==false,acceptDownloads:true,viewport:{width:1280,height:850}};
   // Dedicated profile only. Existing Chrome/Edge cookies are never copied or silently attached.
   if(process.platform==='win32'&&!process.env.VEYRA_USE_CHROMIUM)launch.channel='msedge';
-  const context=await chromium.launchPersistentContext(folder,launch);entry={context,tabs:new Map(),counter:0,console:[],network:[]};
-  browsers.set(profile,entry);context.on('page',page=>registerPage(entry,page));for(const page of context.pages())registerPage(entry,page);
+  const context=await chromium.launchPersistentContext(folder,launch);const created={context,headless:launch.headless,tabs:new Map(),counter:0,console:[],network:[]};
+  if(signal.aborted){await context.close();check(signal)}
+  browsers.set(profile,created);context.on('page',page=>registerPage(created,page));for(const page of context.pages())registerPage(created,page);return created;
+  })();browserLaunches.set(profile,launchPending);try{entry=await launchPending}finally{browserLaunches.delete(profile)}
  }
+ if(signal.aborted){await closeBrowser(profile);check(signal)}
  const onAbort=()=>closeBrowser(profile);signal.addEventListener('abort',onAbort,{once:true});
  try{
   check(signal);const tab=String(options.tab||'');let page=entry.tabs.get(tab)||[...entry.tabs.values()][0];
@@ -120,8 +136,8 @@ async function loadLocalModel(factory){
 }
 async function voice(params,signal){
  const cache=path.join(data,'voice_models');
- const loadASR=()=>{if(!asrPromise){asrPromise=(async()=>{const {pipeline,env}=await dependency('@huggingface/transformers');env.cacheDir=cache;return loadLocalModel(()=>pipeline('automatic-speech-recognition','onnx-community/whisper-base',{dtype:'q8',device:'cpu'}))})();asrPromise.catch(()=>asrPromise=null)}return asrPromise};
- const loadTTS=()=>{if(!ttsPromise){ttsPromise=(async()=>{const {KokoroTTS}=await dependency('kokoro-js');return loadLocalModel(()=>KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'q8',device:'cpu'}))})();ttsPromise.catch(()=>ttsPromise=null)}return ttsPromise};
+ const loadASR=()=>{if(!asrPromise){asrPromise=(async()=>{const {pipeline,env}=await dependency('@huggingface/transformers');env.cacheDir=cache;return loadLocalModel(()=>pipeline('automatic-speech-recognition','onnx-community/whisper-base',{dtype:'q8',device:'cpu',progress_callback:voiceProgress}))})();asrPromise.catch(()=>asrPromise=null)}return asrPromise};
+ const loadTTS=()=>{if(!ttsPromise){ttsPromise=(async()=>{const {KokoroTTS}=await dependency('kokoro-js');return loadLocalModel(()=>KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'q8',device:'cpu',progress_callback:voiceProgress}))})();ttsPromise.catch(()=>ttsPromise=null)}return ttsPromise};
  if(params.operation==='prepare'){await loadASR();check(signal);await loadTTS();check(signal);return {ready:true,model:'Whisper base + Kokoro · local CPU'}};
  if(params.operation==='voices'){const tts=await loadTTS();return {voices:tts.voices}};
  if(params.operation==='speak'){

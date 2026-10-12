@@ -67,6 +67,9 @@ while ([DateTime]::UtcNow -lt $end) {
 }
 Assert $finished 'Interactive install did not finish'
 Assert (Test-Path (Join-Path $program 'TREN.exe')) 'Branded install folder missing app'
+foreach ($module in @('playwright','kokoro-js','@huggingface/transformers','onnxruntime-node')) { Assert (Test-Path (Join-Path $program ('resources/tool-runtime/node_modules/'+$module+'/package.json'))) ('Packaged tool dependency missing: '+$module) }
+Assert (Test-Path (Join-Path $program 'resources/node/node_modules/npm/bin/npm-cli.js')) 'Packaged npm missing'
+Assert (Test-Path (Join-Path $program 'resources/backend/runtime/worker.mjs')) 'Packaged worker missing'
 Assert (-not (Test-Path $link)) 'Unchecked desktop shortcut was created'
 # Silent updates preserve opt-out. Manual reinstalls can create/repair the shortcut.
 SilentInstall @('/S','--updated')
@@ -88,3 +91,12 @@ Assert ($shell.CreateShortcut($link).TargetPath -eq (Join-Path $program 'TREN.ex
 Assert ((Get-ItemPropertyValue $run 'tren-desktop') -eq ('"'+(Join-Path $program 'TREN.exe')+'"')) 'Sign-in launch target was not migrated'
 Assert ((Get-Content $marker -Raw).Trim() -eq 'keep-profile-and-assistant-data') 'Profile was modified'
 Write-Output 'Installer acceptance passed: visible options, default folder, opt-out, shortcut creation, legacy migration and profile/login preservation.'
+
+
+# Exercise the installed application and its actual bundled dependencies.
+$env:TREN_SMOKE_OUTPUT = Join-Path $PSScriptRoot 'smoke-output/installed'
+Remove-Item Env:TREN_RESOURCES -ErrorAction SilentlyContinue
+Remove-Item Env:TREN_DESKTOP_ROOT -ErrorAction SilentlyContinue
+$p = Start-Process (Join-Path $program 'TREN.exe') -ArgumentList '--smoke-test' -PassThru
+Assert ($p.WaitForExit(120000)) 'Installed app smoke timed out'
+Assert ($p.ExitCode -eq 0) 'Installed app did not pass its real window smoke test'

@@ -31,13 +31,17 @@ VEYRA is a Windows-first assistant with a conversational browser interface. Talk
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside VEYRA, back up app files and restart while preserving your data. |
 
-## What's new in v0.11.1
+## What's new in v0.12.0 — release candidate
 
-- **VEYRA install folder:** branded folder defaults independently from legacy compatibility identifiers; previous TREN program folders are replaced through the installer while assistant data stays in place.
-- **Shortcut choice:** choose the installation folder and a checked-by-default “Create a desktop shortcut” option. Start menu shortcuts are named VEYRA.
-- **Renamed GitHub repository:** backend defaults, desktop updater and documentation use alecjhalpin/Veyra; the exact old default is migrated without changing custom update sources.
+The integrated mega-update is being validated on `mega-update`; v0.11.1 remains the published stable release.
 
-The application is VEYRA; your assistant can have any supported name. The GitHub repository remains `alecjhalpin/Veyra`.
+- Independent agents, scoped SQLite memory, pinned facts and shared sub-agent budgets.
+- Cron workflows, durable task evidence, recovery checkpoints, notifications and Stop all.
+- Dedicated Playwright browser profiles, native stdio/HTTP MCP connections and workspace preview.
+- Click-to-talk local Whisper/Kokoro voice, interruption, mute, device selection and a reactive orb.
+- Warned whole-PC autonomous mode and optional unattended administrator worker after separate UAC setup.
+- Portable backup/restore and one desktop Update button for the complete package.
+
 
 ## Getting started
 
@@ -88,7 +92,7 @@ Further desktop polish, private iPhone access, voice, and an animated orb interf
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.11.1.zip
+python build_release.py VEYRA-v0.12.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

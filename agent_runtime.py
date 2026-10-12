@@ -168,7 +168,11 @@ class Engine:
         with self.db() as c:
             if operation=='list':return [dict(r) for r in c.execute('SELECT * FROM agent_memory WHERE agent_id=? ORDER BY pinned DESC,priority DESC,updated DESC LIMIT 500',(aid,))]
             mid=identifier(body.get('id') or secrets.token_hex(12))
-            if operation=='delete':c.execute('DELETE FROM agent_memory WHERE id=? AND agent_id=?',(mid,aid));return {'ok':True}
+            legacy=aid=='default' and mid.startswith('legacy_') and mid[7:].isdigit() and c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='memories'").fetchone()
+            if operation=='delete':
+                c.execute('DELETE FROM agent_memory WHERE id=? AND agent_id=?',(mid,aid))
+                if legacy:c.execute('DELETE FROM memories WHERE id=?',(int(mid[7:]),))
+                return {'ok':True}
             if operation not in ('save','update'):raise ValueError('Unknown memory operation.')
             content=text(body.get('content'),2000);priority=number(body.get('priority',5),0,10);pinned=body.get('pinned',False)
             if type(pinned) is not bool:raise ValueError('Pinned must be true or false.')
@@ -176,6 +180,7 @@ class Engine:
             if old and old['agent_id']!=aid:raise ValueError('Memory belongs to a different agent.')
             if pinned and c.execute('SELECT COUNT(*) FROM agent_memory WHERE agent_id=? AND pinned=1 AND id!=?',(aid,mid)).fetchone()[0]>=64:raise ValueError('Pinned memory limit reached.')
             c.execute('INSERT OR REPLACE INTO agent_memory VALUES(?,?,?,?,?,?,?)',(mid,aid,content,int(pinned),priority,old['created'] if old else time.time(),time.time()))
+            if legacy:c.execute('UPDATE memories SET content=? WHERE id=?',(content,int(mid[7:])))
             return {'id':mid,'ok':True}
     def context_memory(self,aid):
         with self.db() as c:
@@ -207,8 +212,7 @@ class Engine:
         with self.lock:
             if self.closed.is_set() or self.setting('paused',0) and not chat:raise ValueError('Agent execution is paused. Resume in the task inbox.')
             if self.mode()=='off' and not chat:raise ValueError('PC/agent access is off.')
-            if parent and self.job(parent)['agent_id']==aid:raise ValueError('Use a separate sub-agent for a nested workflow; the parent owns this agent workspace.')
-            permissions={'mode':self.mode(),'tools':[] if chat else agent['tools'],'mcp_ids':agent['mcp_ids'],'read_only':bool(agent['read_only']),'chat':chat,'provider':provider}
+            permissions={'mode':self.mode(),'tools':(['memory'] if provider=='chatgpt' and 'memory' in agent['tools'] else []) if chat else agent['tools'],'mcp_ids':agent['mcp_ids'],'read_only':bool(agent['read_only']),'chat':chat,'provider':provider}
             if parent:
                 pjob=self.job(parent);budget=self.budgets.get(pjob['root_id']);depth=pjob['depth']+1
                 if not budget:raise ValueError('Parent task is no longer active.')
@@ -225,8 +229,10 @@ class Engine:
                 if old['status'] in ACTIVE:raise ValueError('Cannot resume an active task.')
                 if old['agent_id']!=aid:raise ValueError('Resume with the original agent.')
                 checkpoint['resumed']=True
-                checkpoint['mutations']=[s.get('digest') for s in old['steps'] if s.get('mutation')]
-                checkpoint['messages'][0]['content']+='\nPrevious partial attempt (do not blindly repeat actions):\n'+json.dumps(old['steps'])[-18000:]
+                with self.db() as c:attempts=[dict(r) for r in c.execute('SELECT id,agent_id,status,steps,result FROM agent_jobs WHERE root_id=?',(old['root_id'],))]
+                for attempt in attempts:attempt['steps']=json.loads(attempt['steps'])
+                checkpoint['mutations']=[step.get('digest') for attempt in attempts for step in attempt['steps'] if step.get('mutation')]
+                checkpoint['messages'][0]['content']+='\nPrevious partial attempts including sub-agents (verify actual state; do not replay actions):\n'+json.dumps(attempts)[-30000:]
             with self.db() as c:c.execute('INSERT INTO agent_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(jid,aid,parent,root,depth,'queued',ct.redact(prompt),'','[]',json.dumps(checkpoint),json.dumps(permissions),'{}',time.time(),None,workflow_id))
             with self.db() as c:c.execute('INSERT INTO agent_messages(agent_id,role,content,provider,created,job_id) VALUES(?,?,?,?,?,?)',(aid,'user',prompt,'user',time.time(),jid))
             self.active[jid]={'cancel':cancel,'budget':budget,'parent':parent,'profile':agent['project']}
@@ -335,13 +341,17 @@ class Engine:
     def run(self,jid,agent,cancel,budget,permission,checkpoint):
         steps=[];usage={};collected=set();status='failed';result='';response_provider=permission['provider'];messages=checkpoint['messages'];seen=set(checkpoint['seen']);mutations=set(checkpoint['mutations'])
         cancelled=lambda:cancel.is_set() or budget.cancel.is_set() or self.closed.is_set()
+        ancestors=set();parent=self.job(jid)['parent_id']
+        while parent:
+            ancestors.add(parent);parent=self.job(parent)['parent_id']
+        children_errors=False
         try:
             # Queue waiting is cancellable and shares runtime budget; never occupy a parent waiting on a child.
             while True:
                 if cancelled():raise InterruptedError()
                 with self.lock:
                     running=sum(1 for k in self.active if self.job(k)['status'] in ('running','awaiting_approval'))
-                    occupied=any(k!=jid and self.job(k)['agent_id']==agent['id'] and self.job(k)['status'] in ('running','awaiting_approval','waiting_children') for k in self.active)
+                    occupied=any(k!=jid and self.job(k)['agent_id']==agent['id'] and (self.job(k)['status'] in ('running','awaiting_approval') or self.job(k)['status']=='waiting_children' and k not in ancestors) for k in self.active)
                     if running<budget.limits['concurrency'] and not occupied:
                         self.update(jid,status='running')
                         break
@@ -364,7 +374,7 @@ class Engine:
                     partial.append(delta)
                     if not cancelled() and time.monotonic()-last_update[0]>.1:
                         self.update(jid,result=ct.redact(''.join(partial))[-30000:]);last_update[0]=time.monotonic()
-                if permission.get('chat') and self.chat_response:answer=self.chat_response(messages,instructions,permission['provider'],on_text)
+                if permission.get('chat') and self.chat_response:answer=self.chat_response(messages,instructions,permission['provider'],on_text,self.schemas(permission) if permission['tools'] else [])
                 elif self.stream_response:answer=self.stream_response(messages,instructions,self.schemas(permission),on_text)
                 else:answer=self.response(messages,instructions,self.schemas(permission))
                 if cancelled():raise InterruptedError()
@@ -382,11 +392,12 @@ class Engine:
                             if cancelled():raise InterruptedError()
                             budget.consume('check');cancel.wait(.2)
                             with self.db() as c:children=[dict(r) for r in c.execute('SELECT id,status,result FROM agent_jobs WHERE parent_id=?',(jid,))]
+                        children_errors=children_errors or any(v['status']!='completed' for v in children)
                         collected.update(v['id'] for v in children)
                         messages.append({'role':'user','content':'Verified sub-agent results. Summarize these actual results; do not assume success or repeat actions:\n'+json.dumps(children)[:30000]})
                         self.update(jid,status='running')
                         continue
-                    result=ct.redact(answer['text']);status='finished_with_errors' if any(s['status']=='failed' for s in steps) else 'completed';break
+                    result=ct.redact(answer['text']);status='finished_with_errors' if children_errors or any(s['status']=='failed' for s in steps) else 'completed';break
                 messages.extend(answer['output'])
                 for call in answer['calls']:
                     if cancelled():raise InterruptedError()
@@ -497,6 +508,10 @@ class Engine:
                 with self.db() as c:
                     previous=c.execute('SELECT status FROM agent_jobs WHERE id=?',(w['last_job'],)).fetchone() if w['last_job'] else None
                     if previous and previous['status'] in ACTIVE:continue
+                    if previous and previous['status']!='completed':
+                        c.execute('UPDATE workflows SET enabled=0 WHERE id=?',(w['id'],))
+                        c.execute('INSERT INTO agent_notifications VALUES(?,?,?,?,0)',(secrets.token_hex(12),w['last_job'],w['name']+' paused after '+previous['status']+'. Inspect the previous action log before enabling this schedule again.',now))
+                        continue
                     # Coalesce missed runs into one; next_run is reserved before starting work.
                     c.execute('UPDATE workflows SET next_run=? WHERE id=?',(next_cron(w['cron'],now,w['timezone']),w['id']))
                 try:jid=self.submit(w['agent_id'],w['prompt'],workflow_id=w['id'])
@@ -512,6 +527,7 @@ class Engine:
         self.scheduler_thread=threading.Thread(target=loop,daemon=True);self.scheduler_thread.start()
     def backup(self):
         with self.db() as c:
+            c.execute('BEGIN')
             snapshot={table:[dict(r) for r in c.execute('SELECT * FROM '+table)] for table in ('agents','agent_memory','workflows','runtime_settings')}
         # Auth, MCP credentials, browser cookies and elevated-worker credentials never leave the PC.
         preferences={}
@@ -520,6 +536,8 @@ class Engine:
         payload={'format':'veyra-backup-1','created':time.time(),'tables':snapshot,'preferences':preferences}
         return {'backup':base64.b64encode(json.dumps(payload).encode()).decode(),'filename':'VEYRA-backup-'+time.strftime('%Y%m%d-%H%M%S')+'.json'}
     def restore(self,encoded,confirmed=False):
+        with self.lock:return self._restore(encoded,confirmed)
+    def _restore(self,encoded,confirmed=False):
         if not confirmed:raise ValueError('Confirm restore. Restored schedules and autonomous access will remain disabled.')
         if self.active:raise ValueError('Stop active work before restoring.')
         raw=base64.b64decode(encoded,validate=True)
@@ -550,16 +568,22 @@ class Engine:
                 for key,value in preferences.items():c.execute('INSERT OR REPLACE INTO settings VALUES(?,?)',(key,value))
                 c.execute("INSERT OR REPLACE INTO settings VALUES('pc_agent_mode','review')")
             if restored_limits is not None:c.execute("INSERT OR REPLACE INTO runtime_settings VALUES('limits',?)",(json.dumps(restored_limits),))
+            projects={r['id']:r['project'] for r in c.execute('SELECT id,project FROM agents')}
+            for row in tables.get('agents',[]):projects[identifier(row['id'])]=identifier(row['project'])
+            if len({project.lower() for project in projects.values()})!=len(projects):raise ValueError('Restored agents must have separate workspaces.')
             for row in tables.get('agents',[]):
                 identifier(row['id']);identifier(row['project']);text(row['name'],80);text(row['instructions'],12000)
-                if set(json.loads(row['tools']))-FAMILIES:raise ValueError('Invalid restored tools.')
+                restored_tools=json.loads(row['tools'])
+                if not isinstance(restored_tools,list) or set(restored_tools)-FAMILIES:raise ValueError('Invalid restored tools.')
                 c.execute('INSERT OR REPLACE INTO agents VALUES(?,?,?,?,?,?,?,?)',(row['id'],row['name'],row['instructions'],row['project'],row['tools'],int(bool(row['read_only'])),'[]',row['created']))
             for row in tables.get('agent_memory',[]):
                 identifier(row['id']);identifier(row['agent_id']);text(row['content'],2000);number(row['priority'],0,10)
+                if row['pinned'] not in (0,1) or not c.execute('SELECT 1 FROM agents WHERE id=?',(row['agent_id'],)).fetchone():raise ValueError('Invalid restored memory agent or pin.')
                 c.execute('INSERT OR REPLACE INTO agent_memory VALUES(?,?,?,?,?,?,?)',tuple(row[k] for k in ('id','agent_id','content','pinned','priority','created','updated')))
             for row in tables.get('workflows',[]):
                 identifier(row['id']);identifier(row['agent_id']);cron_fields(row['cron']);text(row['prompt']);text(row['name'],100)
                 if row['timezone'] not in ('local','UTC'):raise ValueError('Invalid timezone.')
+                if not c.execute('SELECT 1 FROM agents WHERE id=?',(row['agent_id'],)).fetchone():raise ValueError('Restored workflow agent does not exist.')
                 c.execute('INSERT OR REPLACE INTO workflows VALUES(?,?,?,?,?,?,0,?,NULL,?)',(row['id'],row['name'],row['agent_id'],row['prompt'],row['cron'],row['timezone'],next_cron(row['cron'],timezone=row['timezone']),time.time()))
         self.set('paused',1)
         return {'ok':True,'message':'Restored agents, memory and workflows. Schedules are disabled, MCP access must be reconnected, and execution remains paused.'}

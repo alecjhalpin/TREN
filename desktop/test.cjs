@@ -31,3 +31,21 @@ test('rebrand reuses legacy desktop profiles in place',()=>{
   assert.equal(pick(temp),path.join(temp,'tren-desktop'));
  }finally{fs.rmSync(temp,{recursive:true,force:true})}
 });
+
+
+test('packaged backend upgrade preserves real SQLite and private files',{skip:process.platform!=='win32'||!require('node:fs').existsSync(path.join(__dirname,'resources','backend','update-manifest.json'))},()=>{
+ const fs=require('node:fs'),os=require('node:os'),crypto=require('node:crypto'),{spawnSync}=require('node:child_process');
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'veyra-upgrade-')),root=path.join(temp,'existing'),resources=path.join(__dirname,'resources');
+ try{
+  fs.mkdirSync(path.join(root,'data'),{recursive:true});fs.writeFileSync(path.join(root,'app.py'),'previous backend');fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:'0.10.0'}));
+  for(const name of ['pairing-code.txt','chatgpt-auth.json','private-settings.json'])fs.writeFileSync(path.join(root,'data',name),'private fixture '+name);
+  const python=process.env.TREN_TEST_PYTHON||'python',db=path.join(root,'data','assistant.sqlite');
+  const result=spawnSync(python,['-c',"import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute('CREATE TABLE memories(content TEXT)'); c.execute(\"INSERT INTO memories VALUES('retained memory')\"); c.commit(); c.close()",db],{encoding:'utf8',windowsHide:true});assert.equal(result.status,0,result.stderr);
+  const before=crypto.createHash('sha256').update(fs.readFileSync(db)).digest('hex');
+  const prepared=require('./bootstrap.cjs').prepare(path.join(temp,'home'),resources,root,require('./package.json').version,false);
+  assert.equal(prepared.root,root);assert.equal(fs.readFileSync(path.join(root,'app.py'),'utf8'),fs.readFileSync(path.join(resources,'backend','app.py'),'utf8'));
+  assert.equal(crypto.createHash('sha256').update(fs.readFileSync(db)).digest('hex'),before);
+  for(const name of ['pairing-code.txt','chatgpt-auth.json','private-settings.json'])assert.equal(fs.readFileSync(path.join(root,'data',name),'utf8'),'private fixture '+name);
+  const backups=fs.readdirSync(path.join(root,'backups'));assert.equal(backups.length,1);assert.equal(fs.readFileSync(path.join(root,'backups',backups[0],'code','app.py'),'utf8'),'previous backend');
+ }finally{fs.rmSync(temp,{recursive:true,force:true})}
+});

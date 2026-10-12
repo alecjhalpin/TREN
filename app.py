@@ -196,14 +196,15 @@ def agent_response_stream(messages,instructions,tools,on_text):
     return GPT.respond_turn(messages,instructions,setting('chat_model',''),tools,on_text=on_text)
 
 
-def agent_chat_response(messages,instructions,provider,on_text):
+def agent_chat_response(messages,instructions,provider,on_text,tools=None):
     if provider not in ('chatgpt','ollama'):raise ValueError('Choose ChatGPT or local Ollama.')
     fallback_error=None
     if provider=='chatgpt':
         try:
-            grounded=[dict(m) for m in messages];grounded[-1]['content']+=gpt_context(messages[-1]['content'])
+            grounded=[dict(m) for m in messages]
+            if grounded[-1].get('role')=='user':grounded[-1]['content']+=gpt_context(grounded[-1]['content'])
             if not GPT:raise ChatGPTError('sign_in_required')
-            answer=GPT.respond_turn(grounded,instructions+'\nThis is conversation only: no PC or browser actions can be executed. Cite only supplied evidence.',setting('chat_model',''),[],on_text=on_text);answer['provider']='chatgpt';return answer
+            answer=GPT.respond_turn(grounded,instructions+'\nThis is conversation only: no PC or browser actions can be executed. Scoped memory tools may save explicit user requests and stable preferences. Never claim a fact was saved without a successful memory-tool result. Cite only supplied evidence.',setting('chat_model',''),tools or [],on_text=on_text);answer['provider']='chatgpt';return answer
         except ChatGPTError as error:
             if setting('ollama_fallback')!='1':raise
             fallback_error=str(error)
@@ -277,7 +278,8 @@ def command(content):
     if content.startswith('/remember '):
         note = text_field({'content': content[10:]}, 'content', 2000)
         with db() as c:
-            mid = c.execute('INSERT INTO memories(content,created) VALUES(?,?)', (note, time.time())).lastrowid
+            now=time.time();mid = c.execute('INSERT INTO memories(content,created) VALUES(?,?)', (note, now)).lastrowid
+            if ENGINE:c.execute('INSERT INTO agent_memory VALUES(?,?,?,?,?,?,?)',('legacy_'+str(mid),'default',note,0,5,now,now))
         return f'Saved memory #{mid}: {note}'
     if content.startswith('/remind '):
         parts = content[8:].split('|', 2)
@@ -348,11 +350,12 @@ def conversation(messages, backend=None):
         return 'Ollama fallback — ' + str(e) + '\n\n' + result, 'ollama'
 
 
-def chat(content, backend=None):
+def chat(content, backend=None, agent_id='default'):
     # Serialize chat turns so history stays ordered across PC and phone.
     with CHAT_LOCK:
+        if ENGINE:ENGINE.agent(agent_id)
         with db() as c:
-            rows = list(c.execute('SELECT role,content FROM messages ORDER BY id DESC LIMIT 16'))
+            rows = list(c.execute('SELECT role,content FROM agent_messages WHERE agent_id=? ORDER BY id DESC LIMIT 16',(agent_id,))) if ENGINE else list(c.execute('SELECT role,content FROM messages ORDER BY id DESC LIMIT 16'))
         history = [{'role': r['role'], 'content': r['content']} for r in reversed(rows)]
         # Limit context by characters as well as message count.
         while len(history) > 2 and sum(len(m['content']) for m in history) > 18000:
@@ -365,6 +368,7 @@ def chat(content, backend=None):
             now = time.time()
             c.executemany('INSERT INTO messages(role,content,created,provider) VALUES(?,?,?,?)',
                           [('user', content, now, 'user'), ('assistant', result, now, provider)])
+            if ENGINE:c.executemany('INSERT INTO agent_messages(agent_id,role,content,created,provider,job_id) VALUES(?,?,?,?,?,NULL)',[(agent_id,'user',content,now,'user'),(agent_id,'assistant',result,now,provider)])
         return result
 
 
@@ -811,13 +815,15 @@ class Handler(BaseHTTPRequestHandler):
                 set_setting('chat_model', model)
                 return self.send(200, {'ok': True})
             if path == '/api/chat':
-                return self.send(200, {'answer': chat(text_field(body, 'message', 6000), body.get('provider'))})
+                return self.send(200, {'answer': chat(text_field(body, 'message', 6000), body.get('provider'),body.get('agent_id','default'))})
             if path == '/api/memory':
                 with db() as c:
-                    c.execute('INSERT INTO memories(content,created) VALUES(?,?)', (text_field(body, 'content', 2000), time.time()))
+                    note=text_field(body,'content',2000);now=time.time();mid=c.execute('INSERT INTO memories(content,created) VALUES(?,?)',(note,now)).lastrowid
+                    if ENGINE:c.execute('INSERT INTO agent_memory VALUES(?,?,?,?,?,?,?)',('legacy_'+str(mid),'default',note,0,5,now,now))
             elif path == '/api/memory/delete':
                 with db() as c:
                     c.execute('DELETE FROM memories WHERE id=?', (int(body['id']),))
+                    if ENGINE:c.execute("DELETE FROM agent_memory WHERE id=? AND agent_id='default'",('legacy_'+str(int(body['id'])),))
             elif path == '/api/tasks':
                 title = text_field(body, 'title', 100)
                 prompt = text_field(body, 'prompt', 6000)

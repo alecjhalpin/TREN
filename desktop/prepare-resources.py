@@ -43,3 +43,10 @@ shutil.rmtree(tool_runtime,ignore_errors=True)
 shutil.copytree(ROOT/'runtime',tool_runtime,ignore=shutil.ignore_patterns('node_modules','test.mjs'))
 npm=DEST/'node'/'node_modules'/'npm'/'bin'/'npm-cli.js'
 subprocess.run([str(DEST/'node'/'node.exe'),str(npm),'ci','--omit=dev','--ignore-scripts'],cwd=tool_runtime,check=True)
+
+# Keep Windows x64 CPU libraries; voice uses no CUDA provider.
+onnx=tool_runtime/'node_modules'/'onnxruntime-node'/'bin'/'napi-v3'
+for platform in ('linux','darwin'):shutil.rmtree(onnx/platform,ignore_errors=True)
+shutil.rmtree(onnx/'win32'/'arm64',ignore_errors=True)
+for cuda in (onnx/'win32'/'x64').glob('*cuda*'):cuda.unlink()
+print('Staged locked Windows browser/voice dependencies and bundled npm.')

@@ -36,3 +36,15 @@ The working branch implements the SQLite agent/workflow engine, permission snaps
 Verified locally: 93 Python tests (including 9 agent-runtime tests), 6 desktop regression tests, and 3 real MCP/snapshot tests. Backend archive generation now includes the new modules and runtime manifests. The full packaged Windows upgrade, microphone/voice models, Edge UI integration, and elevated unattended installation acceptance remain pending. The local Chromium download failed; Windows CI uses Edge. No mega-update release is published.
 
 Additional verification: real local Kokoro generated 190,844-byte WAV output at 24 kHz; Whisper correctly transcribed the generated greeting. Automated model acceptance now covers this round trip. Two more agent tests verify recursive descendant cancellation and portable-settings/limits restore without exporting credentials. The full ordinary test run passes 97 tests with two opt-in Windows/model acceptance checks skipped. Windows Edge caught an ESM absolute-path import defect, fixed by converting resolved dependency paths to file URLs; its rerun remains pending. CPU voice runtime pins patched sharp 0.35.5. npm still reports sprintf-js through the ONNX postinstall proxy/logging helper; postinstall scripts are disabled and that helper is not called by the runtime. Track this upstream dependency before release.
+
+## v0.12.0 candidate validation
+
+Development branch: `mega-update`. Do not publish partial feature releases or overwrite the v0.11.1 release assets.
+
+Checkpoint 6043520ae8abd58c63bc7a6442f5658f68e22ca9 passed Windows run 38311670256: real Edge navigation/fill/click/extraction, real Whisper/Kokoro speech round trip, an authenticated elevated-worker installation and execution of pinned rimraf plus its glob dependency, revocation, audio capture, desktop launch, and installer folder/shortcut/profile preservation. This proves staged/runtime functionality; it does not prove a user's live GPT account or interactive UAC enrollment.
+
+Packaging review then found electron-builder's root node_modules exclusion. The candidate now maps both tool-runtime dependencies and bundled npm explicitly and checks the installed package, including its actual window launch. These final package checks are pending until the new candidate CI run passes.
+
+Additional candidate safeguards: uncertain/failed schedules pause before another attempt; resumed trees block exact mutations from descendant jobs; nested workflows serialize in their configured workspace; restored agents cannot share a workspace accidentally; new composer drafts survive submission and voice transcription; ordinary refreshes preserve conversation scroll/evidence. Model-download markers allow the next worker to discard incomplete downloads after a forced stop. No wake word and no phone-app development are included.
+
+The local execution service disconnected during final consolidation. Changes are being saved through the GitHub API and verified by the existing Linux/Windows CI pipeline. The source on this branch and its recorded checks remain authoritative; uncommitted local experiments must not be treated as released functionality.

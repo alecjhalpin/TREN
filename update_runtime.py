@@ -81,8 +81,9 @@ def release(repo):
     repo=repo_name(repo);r=json.loads(fetch('https://api.github.com/repos/'+repo+'/releases/latest',1024*1024))
     if r.get('draft') or r.get('prerelease'):raise ValueError('Only stable published releases are accepted.')
     v=str(r.get('tag_name','')).removeprefix('v');version(v)
-    candidates=[a for a in r.get('assets',[]) if a.get('name')=='TREN-v'+v+'.zip']
-    if len(candidates)!=1:raise ValueError('Release must contain one asset named TREN-v'+v+'.zip.')
+    candidates=[a for a in r.get('assets',[]) if a.get('name')=='VEYRA-v'+v+'.zip']
+    if not candidates:candidates=[a for a in r.get('assets',[]) if a.get('name')=='TREN-v'+v+'.zip']
+    if len(candidates)!=1:raise ValueError('Release must contain one VEYRA backend asset.')
     a=candidates[0];digest=a.get('digest','')
     if not re.fullmatch(r'sha256:[a-f0-9]{64}',digest):raise ValueError('GitHub did not provide a SHA-256 asset digest; use ZIP import or republish the release.')
     url=a.get('browser_download_url','');checked_url(url)

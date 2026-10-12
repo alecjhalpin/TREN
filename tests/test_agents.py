@@ -17,7 +17,7 @@ class AgentTests(unittest.TestCase):
  def tearDown(self):self.engine.close();self.tmp.cleanup()
  def wait(self,jid):
   end=time.time()+5
-  while self.engine.job(jid)['status'] in ('queued','running','awaiting_approval','cancelling') and time.time()<end:time.sleep(.02)
+  while self.engine.job(jid)['status'] in ('queued','running','awaiting_approval','waiting_children','cancelling') and time.time()<end:time.sleep(.02)
   return self.engine.job(jid)
  def test_real_job_checkpoints_and_usage(self):
   jid=self.engine.submit('default','Inspect a fixture')
@@ -84,10 +84,9 @@ class AgentTests(unittest.TestCase):
   parent=self.engine.submit('default','Parent mission')
   child=self.engine.submit('child','Child mission',parent=parent)
   grandchild=self.engine.submit('grandchild','Grandchild mission',parent=child)
+  parent_cancel=self.engine.active[parent]['cancel'];child_cancel=self.engine.active[child]['cancel'];grandchild_cancel=self.engine.active[grandchild]['cancel']
   self.engine.cancel(child)
-  self.assertFalse(self.engine.active[parent]['cancel'].is_set())
-  self.assertTrue(self.engine.active[child]['cancel'].is_set())
-  self.assertTrue(self.engine.active[grandchild]['cancel'].is_set())
+  self.assertFalse(parent_cancel.is_set());self.assertTrue(child_cancel.is_set());self.assertTrue(grandchild_cancel.is_set())
   gate.set()
   self.assertEqual(self.wait(child)['status'],'cancelled')
   self.assertEqual(self.wait(grandchild)['status'],'cancelled')
@@ -117,3 +116,63 @@ class AgentTests(unittest.TestCase):
   self.assertEqual(first['status'],'uncertain');self.assertEqual(path.read_text(),'once')
   second=self.wait(self.engine.submit('default','Write once',resume=first['id']))
   self.assertEqual(second['status'],'denied');self.assertEqual(len(executions),1);self.assertEqual(path.read_text(),'once')
+
+ def test_uncertain_workflow_pauses_before_another_scheduled_attempt(self):
+  workflow=self.engine.save_workflow({'name':'Safe recurring task','prompt':'Mission','cron':'* * * * *','enabled':True})
+  first=self.wait(self.engine.submit('default','Prior mission',workflow_id=workflow['id']))
+  self.engine.update(first['id'],status='uncertain')
+  with self.db() as c:c.execute('UPDATE workflows SET last_job=?,next_run=0 WHERE id=?',(first['id'],workflow['id']))
+  before=len(self.engine.state()['jobs']);self.engine.tick()
+  self.assertEqual(len(self.engine.state()['jobs']),before);self.assertFalse(self.engine.state()['workflows'][0]['enabled'])
+  self.assertIn('Inspect the previous action log',self.engine.state()['notifications'][0]['text'])
+ def test_nested_workflow_uses_configured_workspace_without_deadlock(self):
+  workflow=self.engine.save_workflow({'name':'Nested workflow','prompt':'Child workflow mission','cron':'* * * * *'})
+  turns={}
+  def model(messages,*args):
+   thread=threading.current_thread().name;turns[thread]=turns.get(thread,0)+1
+   if messages[-1].get('content')=='Parent workflow mission' and turns[thread]==1:
+    return {'text':'','output':[],'calls':[{'name':'workflow','call_id':'run','arguments':json.dumps({'request':json.dumps({'operation':'run','id':workflow['id']})})}]}
+   return {'text':'Verified fixture result','calls':[],'output':[]}
+  self.response=model;root=self.wait(self.engine.submit('default','Parent workflow mission'))
+  self.assertEqual(root['status'],'completed',root)
+  children=[j for j in self.engine.state()['jobs'] if j['parent_id']==root['id']]
+  self.assertEqual(len(children),1);self.assertEqual(children[0]['status'],'completed');self.assertEqual(children[0]['agent_id'],'default')
+ def test_resume_blocks_mutations_performed_by_a_subagent(self):
+  file=self.data/'projects/default/child.txt';args={'action':'write','path':str(file),'destination':'','content':'child wrote once','pattern':'','limit':10}
+  turns={};resuming=[False];executions=[]
+  original=self.engine.dispatch
+  def dispatch(*call):
+   if call[3]=='pc_files':executions.append(1)
+   return original(*call)
+  self.engine.dispatch=dispatch
+  def model(messages,*ignored):
+   thread=threading.current_thread().name;turns[thread]=turns.get(thread,0)+1
+   if resuming[0] or messages[0]['content']=='Write child' and turns[thread]==1:
+    return {'text':'','output':[],'calls':[{'name':'pc_files','call_id':'write','arguments':json.dumps(args)}]}
+   if messages[0]['content']=='Parent delegation' and turns[thread]==1:
+    return {'text':'','output':[],'calls':[{'name':'delegate','call_id':'child','arguments':json.dumps({'request':json.dumps({'operation':'spawn','name':'Writer','mission':'Write child'})})}]}
+   return {'text':'Verified fixture result','calls':[],'output':[]}
+  self.response=model;first=self.wait(self.engine.submit('default','Parent delegation'))
+  self.assertEqual(first['status'],'completed',first);self.assertEqual(file.read_text(),'child wrote once')
+  resuming[0]=True;second=self.wait(self.engine.submit('default','Continue verification',resume=first['id']))
+  self.assertEqual(second['status'],'denied',second);self.assertEqual(len(executions),1)
+ def test_restore_rejects_workspace_collisions_transactionally(self):
+  self.engine.save_agent({'id':'other','project':'other','name':'Other'})
+  exported=self.engine.backup();payload=json.loads(base64.b64decode(exported['backup']))
+  for agent in payload['tables']['agents']:agent['project']='default'
+  encoded=base64.b64encode(json.dumps(payload).encode()).decode()
+  with self.assertRaises(ValueError):self.engine.restore(encoded,True)
+  self.assertEqual(self.engine.agent('other')['project'],'other')
+
+ def test_chat_can_save_scoped_memory_with_pc_access_off(self):
+  self.mode='off';turns=[0];seen=[]
+  def chat(messages,instructions,provider,on_text,tools):
+   seen.extend(tool['name'] for namespace in tools for tool in namespace['tools']);turns[0]+=1
+   if turns[0]==1:return {'text':'','output':[],'calls':[{'name':'agent_memory','call_id':'save','arguments':json.dumps({'request':json.dumps({'operation':'save','content':'Prefers a blue orb','pinned':True,'priority':10})})}]}
+   return {'text':'Saved your preference.','output':[],'calls':[]}
+  self.engine.chat_response=chat;job=self.wait(self.engine.submit('default','Remember my blue orb preference',chat=True,provider='chatgpt'))
+  self.assertEqual(job['status'],'completed',job);self.assertEqual(set(seen),{'agent_memory'});self.assertIn('blue orb',self.engine.context_memory('default'))
+ def test_chat_cannot_execute_pc_tools(self):
+  self.engine.chat_response=lambda *a:{'text':'','output':[],'calls':[{'name':'pc_files','call_id':'forbidden','arguments':json.dumps({'action':'write','path':str(self.data/'forbidden.txt'),'destination':'','content':'must not execute','pattern':'','limit':10})}]}
+  job=self.wait(self.engine.submit('default','Ordinary conversation',chat=True,provider='chatgpt'))
+  self.assertEqual(job['status'],'denied');self.assertFalse((self.data/'forbidden.txt').exists())

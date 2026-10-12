@@ -1,8 +1,8 @@
 {
   "name": "tren-desktop",
-  "version": "0.11.1",
+  "version": "0.12.0",
   "private": true,
-  "description": "VEYRA \u2014 Your AI. Your computer. Your rules.",
+  "description": "VEYRA — Your AI. Your computer. Your rules.",
   "author": "VEYRA",
   "main": "main.cjs",
   "scripts": {
@@ -71,6 +71,20 @@
       {
         "from": "resources/tool-runtime",
         "to": "tool-runtime"
+      },
+      {
+        "from": "resources/tool-runtime/node_modules",
+        "to": "tool-runtime/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "resources/node/node_modules",
+        "to": "node/node_modules",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "executableName": "TREN"

@@ -26,14 +26,17 @@ jobs:
           node --test test.mjs
       - name: Build and verify backend
         run: |
-          python -c "import json; from build_release import build; build('.', 'TREN-v'+json.load(open('version.json'))['version']+'.zip')"
+          python -c "import json; from build_release import build; build('.', 'VEYRA-v'+json.load(open('version.json'))['version']+'.zip')"
           python -m unittest discover -s tests -v
           node tests/ui_logic.cjs
+          node --check ui_extensions.js
+          node --check runtime/worker.mjs
+          node --check desktop/main.cjs
           node --test desktop/test.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: TREN-v*.zip
+          path: VEYRA-v*.zip
   desktop:
     needs: validate
     runs-on: windows-latest
