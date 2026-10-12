@@ -47,3 +47,7 @@ This milestone includes first-install backend/Python/Node packaging. Models and 
 ## Earlier desktop build evidence
 
 The earlier v0.9.0 Windows smoke test and installer build passed in [the release workflow](https://github.com/alecjhalpin/TREN/actions/runs/38248472618). The actual captured window layouts were reviewed: [Light](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-light.png) / [Dark](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-dark.png). The preview conversations are synthetic layout fixtures. Local installed-app acceptance remains separate.
+
+## Current first-install build evidence
+
+The v0.10.0 existing/fresh Windows smoke tests and installer build passed in [Actions](https://github.com/alecjhalpin/TREN/actions/runs/38252658975). Reviewed captures: [Welcome](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Onboarding.png), [Mode menu](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Mode-Menu.png), [Light](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Desktop-light.png), [Dark](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Desktop-dark.png). The preview assistant name and messages are synthetic layout fixtures. Local provider consent and optional-tool installation still need real-user acceptance.
