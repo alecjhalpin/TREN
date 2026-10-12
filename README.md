@@ -29,15 +29,13 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside TREN, back up app files and restart while preserving your data. |
 
-## What's new in v0.8.0
+## What's new in v0.8.1
 
-- **General PC agent:** GPT selects tools and continues from their actual results across multiple steps.
-- **PC inspection and file tools:** drive space, system information, file search/read and reviewed file changes.
-- **Reviewed PowerShell and administrator tasks:** approve an action in the conversation; elevation additionally requires Windows UAC.
-- **Task controls:** progress, action review, cancellation, interrupted-task history and backups for supported file changes.
-- **Startup protection:** a second instance cannot reinitialize an already-running instance's job state.
+- **Windows startup protection:** exclusively reserve TREN's port to prevent overlapping app listeners.
+- **Explicit ChatGPT mode:** choosing ChatGPT now uses regular conversation; Auto and PC Agent retain PC-tool routing.
+- **Clearer PC-agent failures:** distinguish a stream ending early, invalid tool calls, empty completed responses, network failures and response-format errors.
 
-**Verification:** basic GPT conversation and v0.7 behavior are user-confirmed. v0.8 Windows PC-tool/UAC acceptance is pending; a reported v0.7 → v0.8 startup-check failure is under investigation. Automated checks do not replace Windows acceptance. See [v0.8 details](README-v0.8.md).
+**Verification:** ordinary GPT conversation and recovery from duplicate TREN processes are user-confirmed. The live PC-agent response failure remains under investigation; this release improves diagnosis, without claiming that storage/tool execution is fixed. See [PC-agent details](README-v0.8.md).
 
 ## Getting started
 
@@ -74,7 +72,7 @@ Desktop launch without a terminal, private iPhone access, voice, and an animated
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.8.0.zip
+python build_release.py TREN-v0.8.1.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

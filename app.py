@@ -1,5 +1,6 @@
 """TREN — Windows-first personal assistant. Python 3.11+."""
 import argparse
+import socket
 import http.cookies
 import hashlib
 import contextlib
@@ -724,6 +725,16 @@ def begin_update(server, do_rollback=False):
         GENERATION_LOCK.release()
 
 
+class TrenHTTPServer(ThreadingHTTPServer):
+    # SO_REUSEADDR on Windows can allow overlapping listeners. Reserve the
+    # socket exclusively before initialization touches persisted task state.
+    def server_bind(self):
+        if os.name == 'nt':
+            self.allow_reuse_address = False
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--no-browser', action='store_true')
@@ -732,7 +743,7 @@ def main():
     # Reserve the port before touching job state. A second instance must not
     # interrupt the first instance's coding/PC jobs during initialization.
     try:
-        server = ThreadingHTTPServer(('127.0.0.1', PORT), Handler)
+        server = TrenHTTPServer(('127.0.0.1', PORT), Handler)
     except OSError:
         print(f'Cannot start TREN on port {PORT}. Check whether TREN is already running.',flush=True)
         return

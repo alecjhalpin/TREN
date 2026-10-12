@@ -48,6 +48,10 @@ ERRORS = {
     'subscription_sharing_v2_client_not_enabled': 'TREN is not enabled for plan sharing on this account.',
     'cancelled': 'ChatGPT sign-in was cancelled.',
     'access_denied': 'ChatGPT permission was declined.',
+    'stream_ended': 'ChatGPT stream ended before a completion event. No tool actions from this response were executed.',
+    'tool_response_empty': 'ChatGPT completed the PC-agent response without text or function calls.',
+    'tool_response_invalid': 'ChatGPT returned a function call with missing or invalid fields. No tool actions from this response were executed.',
+    'response_format_error': 'TREN could not parse the ChatGPT response format. No tool actions from this response were executed.',
     'incomplete_response': 'ChatGPT did not complete its response. No partial answer was saved.',
     'storage_unavailable': 'ChatGPT credentials could not be protected or read. Existing credentials were preserved.',
     'identity_unavailable': 'ChatGPT identity verification is unavailable. Your saved connection was preserved; try again.',
@@ -177,9 +181,9 @@ def read_stream(response, structured=False):
                     calls = [item for item in items if item.get('type') == 'function_call']
                     for call in calls:
                         if not all(isinstance(call.get(k), str) and call[k] for k in ('call_id', 'name', 'arguments')) or len(call['arguments']) > 40000:
-                            raise ChatGPTError('incomplete_response')
+                            raise ChatGPTError('tool_response_invalid')
                     if not text and not calls:
-                        raise ChatGPTError('incomplete_response')
+                        raise ChatGPTError('tool_response_empty')
                     return {'text': text, 'output': items, 'calls': calls}
                 if not text:
                     raise ChatGPTError('incomplete_response')
@@ -189,7 +193,7 @@ def read_stream(response, structured=False):
                 event_lines.append(line[5:].strip().decode('utf-8'))
             except UnicodeError:
                 raise ChatGPTError('incomplete_response') from None
-    raise ChatGPTError('incomplete_response')
+    raise ChatGPTError('stream_ended' if structured else 'incomplete_response')
 
 
 class ChatGPT:
@@ -438,8 +442,11 @@ class ChatGPT:
             except ChatGPTError as e:
                 self.error = e
                 raise
-            except (OSError, ValueError, TypeError, AttributeError):
-                self.error = ChatGPTError('incomplete_response')
+            except OSError:
+                self.error = ChatGPTError('network_error')
+                raise self.error from None
+            except (ValueError, TypeError, AttributeError):
+                self.error = ChatGPTError('response_format_error')
                 raise self.error from None
 
     def start_sign_in(self):

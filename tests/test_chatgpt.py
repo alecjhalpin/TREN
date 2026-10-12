@@ -231,6 +231,19 @@ class SignatureTests(unittest.TestCase):
         self.assertEqual(parsed['calls'][0]['call_id'],'call-id')
         self.assertEqual(parsed['text'],'')
 
+    def test_tool_failures_are_distinguished_without_executing_partial_calls(self):
+        import io
+        cases = [
+            (b'', 'stream_ended'),
+            ({'status': 'completed', 'output': []}, 'tool_response_empty'),
+            ({'status': 'completed', 'output': [{'type':'function_call','name':'pc_info'}]}, 'tool_response_invalid'),
+        ]
+        for response, code in cases:
+            raw = response if isinstance(response, bytes) else ('data: '+json.dumps({'type':'response.completed','response':response})+'\n\n').encode()
+            with self.subTest(code=code), self.assertRaises(p.ChatGPTError) as failure:
+                p.read_stream(io.BytesIO(raw), structured=True)
+            self.assertEqual(failure.exception.code, code)
+
     def test_real_node_rsa_signature_and_tampering(self):
         script = """const c=require('node:crypto');const {privateKey,publicKey}=c.generateKeyPairSync('rsa',{modulusLength:2048});const h=Buffer.from(JSON.stringify({alg:'RS256'})).toString('base64url');const b=Buffer.from(JSON.stringify({sub:'synthetic'})).toString('base64url');const text=h+'.'+b;console.log(JSON.stringify({token:text+'.'+c.sign('RSA-SHA256',Buffer.from(text),privateKey).toString('base64url'),key:publicKey.export({format:'jwk'})}));"""
         fixture = json.loads(subprocess.check_output(['node', '-e', script], text=True))

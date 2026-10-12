@@ -172,7 +172,7 @@ class AssistantTests(unittest.TestCase):
             self.assertEqual(self.request('/api/pc/settings',{'mode':'everything-without-review'})[0],400)
 
     def test_second_instance_does_not_touch_running_job_state(self):
-        with patch.object(sys,'argv',['app.py','--no-browser']),patch.object(a,'ThreadingHTTPServer',side_effect=OSError('port in use')),patch.object(a,'init') as initialize:
+        with patch.object(sys,'argv',['app.py','--no-browser']),patch.object(a,'TrenHTTPServer',side_effect=OSError('port in use')),patch.object(a,'init') as initialize:
             a.main()
             initialize.assert_not_called()
 
