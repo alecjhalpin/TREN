@@ -50,7 +50,7 @@ async function start(){
  ipcMain.on('chrome-theme',(event,mode)=>{if(runtime.internal(event.senderFrame?.url,base)&&['light','dark'].includes(mode))win.setTitleBarOverlay({color:mode==='light'?'#f7f8fa':'#18191b',symbolColor:mode==='light'?'#182228':'#f1f1ee',height:38})});
  ipcMain.handle('optional-setup',(event,feature)=>{if(!runtime.internal(event.senderFrame?.url,base))throw Error('Local setup only');return optionalSetup(feature)});
  tray=new Tray(trayIcon());tray.setToolTip('VEYRA — Your AI. Your computer. Your rules.');tray.on('double-click',show);refreshTray();
- await autoPair();await win.loadURL(base);if(!smoke)win.show();
+ await autoPair();await win.loadURL(base);win.show();
  if(smoke)await smokeTest();
 }
 function trayIcon(){const icon=nativeImage.createFromPath(path.join(__dirname,'assets','veyra-icon.png'));if(icon.isEmpty())throw Error('VEYRA icon is missing.');return icon.resize({width:32,height:32})}
@@ -126,6 +126,8 @@ async function smokeTest(){
  await win.webContents.executeJavaScript(`(async()=>{await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:${JSON.stringify(code)},remember:true,name:'Desktop smoke fixture'})});await refresh()})()`);
  for(const theme of ['light','dark']){
   await win.webContents.executeJavaScript(`applyTheme('${theme}');current.messages=[{role:'user',content:'Hey Nova, what can we work on?',created:1},{role:'assistant',provider:'chatgpt',content:'Ready when you are.\\n\\n- **Talk through an idea**\\n- Work on your PC\\n- Build something together',created:2}];renderConversation();hideError();document.getElementById('health').textContent='Layout preview'`);
+  await win.webContents.executeJavaScript(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
+  const background=await win.webContents.executeJavaScript(`getComputedStyle(document.body).backgroundColor`);if(background!==(theme==='light'?'rgb(247, 248, 250)':'rgb(24, 25, 27)'))throw Error('Rendered theme background failed: '+background);
   await sleep(350);const screenshot=await win.webContents.capturePage();fs.writeFileSync(path.join(output,'VEYRA-Desktop-'+theme+'.png'),screenshot.toPNG());
  }
  {await win.webContents.executeJavaScript(`document.getElementById('modePicker').open=true`);await sleep(150);fs.writeFileSync(path.join(output,'VEYRA-Mode-Menu.png'),(await win.webContents.capturePage()).toPNG())}

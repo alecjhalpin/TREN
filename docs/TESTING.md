@@ -1,11 +1,11 @@
-# TREN testing and acceptance
+# VEYRA testing and acceptance
 
 ## Current automated baseline
 
-v0.10.0: 82 backend tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
+v0.11.0: 83 backend tests and 6 desktop tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
 
 ```sh
-python build_release.py TREN-v0.10.0.zip
+python build_release.py TREN-v0.11.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```
@@ -25,7 +25,7 @@ UI checks use a minimal DOM simulator. They cover the composer, safe formatting,
 
 ## Still to verify
 
-Reviewed temporary-file changes, harmless PowerShell commands, task denial/cancellation and explicitly requested UAC diagnostics on Windows; private iPhone/Tailscale/Safari use; broader rendered/browser accessibility checks; full failure/recovery and duplicate-launch scenarios. Desktop packaging is implemented with acceptance pending; native phone app, voice and visual browser/desktop control remain planned.
+Explicitly requested UAC diagnostics on Windows; private iPhone/Tailscale/Safari use; broader rendered/browser accessibility checks; full failure/recovery and duplicate-launch scenarios. Windows packaging and existing/fresh bootstrap smoke passed; installed-version upgrade and user lifecycle acceptance remain pending; native phone app, voice and visual browser/desktop control remain planned.
 
 ## Useful local acceptance checks
 
@@ -67,3 +67,5 @@ Windows v0.10.0 build evidence: [Actions run 38252658975](https://github.com/ale
 ## v0.11.0 brand transition
 
 Added regression checks for new Nova identity, retaining returning TREN/custom identities and selecting legacy desktop profiles in place. Backend/desktop versions must match. Windows builds exercise existing and fresh bootstrap, rendered light/dark/welcome/menu screenshots and installer packaging. CI does not prove a real installed v0.10→v0.11 upgrade, shortcut/Windows sign-in migration, or new live OAuth consent; those remain user acceptance checks.
+
+Actions 38258749000 verified backend/UI/desktop tests, both Windows bootstrap smoke modes and NSIS packaging, then published v0.11.0. Dark and onboarding captures were reviewed. Its published light screenshot captured a stale hidden-window frame and is not a valid light preview; the capture harness now shows the test window and waits for rendered frames, checking the actual computed background before capture. This is test-harness validation, not a model-inference claim.

@@ -1,15 +1,15 @@
-# TREN direction and v1.0 criteria
+# VEYRA direction and v1.0 criteria
 
-TREN is a GPT-first Windows personal AI agent, inspired by assistants such as DOTS. Conversation is its interface; it should solve new tasks with general file, execution and application tools, reducing custom feature updates. Existing ChatGPT plan usage is preferred; avoid extra API subscriptions/spending. Ollama remains available for local chat/fallback and routines.
+VEYRA is a GPT-first Windows personal AI agent, inspired by assistants such as DOTS. Conversation is its interface; it should solve new tasks with general file, execution and application tools, reducing custom feature updates. Existing ChatGPT plan usage is preferred; avoid extra API subscriptions/spending. Ollama remains available for local chat/fallback and routines.
 
 ## Current delivered foundation
 
-v0.8 provides general PC-tool planning/execution/results, reviewed commands and file changes, local file/drive inspection and task-specific UAC. Prior releases added GPT conversation, memory/routines, project-scoped Codex, reliable GitHub updates, persistent pairing and composer behavior. Windows basic GPT/v0.7 use, correct live drive inspection and basic v0.8.4 Auto routing are user-confirmed. File mutations, PowerShell/UAC and broader acceptance remain pending.
+v0.8 provides general PC-tool planning/execution/results, reviewed commands and file changes, local file/drive inspection and task-specific UAC. Prior releases added GPT conversation, memory/routines, project-scoped Codex, reliable GitHub updates, persistent pairing and composer behavior. Windows basic GPT/v0.7 use, correct live drive inspection and basic v0.8.4 Auto routing are user-confirmed. Temporary-file changes, harmless PowerShell, denial and cancellation were user-confirmed. Real UAC and broader acceptance remain pending.
 
 ## Next priorities
 
 1. Expand verified PC inspection and test a temporary-file task, an approved harmless PowerShell command, denial/cancellation and an explicitly requested harmless elevated diagnostic. Inspect logs before retrying any partially completed task.
-2. Verify the v0.9 desktop companion: installer/shortcuts, tray lifecycle, sign-in launch, remembered pairing and backend/shell updates. Continue desktop polish using the existing backend.
+2. Verify installed desktop upgrades and lifecycle: installer/shortcuts, tray lifecycle, sign-in launch, remembered pairing and backend/shell updates. Continue desktop polish using the existing backend.
 3. Private iPhone access/usable packaging on the same backend, verified Safari sessions and task approvals.
 4. Voice input/output, latency and interruption, using supported routes compatible with the spending requirement.
 5. Abstract animated orb with listening/thinking/speaking states and floating task panels; no human avatar; keep text chat.
@@ -23,9 +23,9 @@ For each new release, replace README’s current “What's new” feature list; 
 
 ## Product identity and provider expansion
 
-The public application brand will be selected later; TREN remains the current app/repository/package identity. Each user can name their personal assistant independently in v0.10.0. Future provider choices requested: DeepSeek, Grok and Claude. Their authentication, eligible capabilities, costs and fallback behavior must be designed and verified before integration; they are not currently available. Preserve existing GPT-first plan-sharing and optional Ollama behavior while adding them.
+The public application is VEYRA; legacy repository/package identifiers remain for update compatibility. Each user can name their personal assistant independently in v0.10.0. Future provider choices requested: DeepSeek, Grok and Claude. Their authentication, eligible capabilities, costs and fallback behavior must be designed and verified before integration; they are not currently available. Preserve existing GPT-first plan-sharing and optional Ollama behavior while adding them.
 
-Verify fresh-install runtime/bootstrap, assistant-name onboarding, optional dependency installers, integrated title bar and readable mode picker. Public naming must preserve existing installation/data paths and update identity during any later rebrand.
+Verify fresh-install runtime/bootstrap, assistant-name onboarding, optional dependency installers, integrated title bar and readable mode picker. v0.11 preserves existing installation/data paths and update identity through the VEYRA rebrand.
 
 ## Product identity
 
