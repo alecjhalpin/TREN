@@ -2,10 +2,10 @@
 
 ## Current automated baseline
 
-v0.8.4: 79 backend tests pass on the Linux development environment; Node UI logic checks pass. GitHub's release workflow also passed. Run the manifest builder before the backend suite:
+v0.9.0: 80 backend tests pass on the Linux development environment; Node UI logic checks pass. Desktop publication is gated on a real Windows Electron smoke test and NSIS build. Run the manifest builder before the backend suite:
 
 ```sh
-python build_release.py TREN-v0.8.4.zip
+python build_release.py TREN-v0.9.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```
@@ -25,7 +25,7 @@ UI checks use a minimal DOM simulator. They cover the composer, safe formatting,
 
 ## Still to verify
 
-Reviewed temporary-file changes, harmless PowerShell commands, task denial/cancellation and explicitly requested UAC diagnostics on Windows; private iPhone/Tailscale/Safari use; broader rendered/browser accessibility checks; full failure/recovery and duplicate-launch scenarios. Desktop packaging, native phone app, voice and visual browser/desktop control are planned and have no delivered-feature acceptance claim.
+Reviewed temporary-file changes, harmless PowerShell commands, task denial/cancellation and explicitly requested UAC diagnostics on Windows; private iPhone/Tailscale/Safari use; broader rendered/browser accessibility checks; full failure/recovery and duplicate-launch scenarios. Desktop packaging is implemented with acceptance pending; native phone app, voice and visual browser/desktop control remain planned.
 
 ## Useful local acceptance checks
 
@@ -49,3 +49,9 @@ Reviewed temporary-file changes, harmless PowerShell commands, task denial/cance
 | 0.8.4 | 79 | Authenticated semantic-routing control flow |
 
 These counts record checks run at those milestones, not guarantees that every feature was tested on Windows. Older reports and exact sources remain in Git history/releases.
+
+## Desktop verification
+
+Four Node transport/installation/navigation/version tests pass locally, plus theme selection/persistence/system-change UI logic. The Python suite checks desktop controller authentication, host/origin/confirmation gates and shutdown dispatch. The Windows workflow starts the actual Electron window and Python backend, checks light/dark and reload persistence, pairs synthetic local data, captures layout previews, and stops the owned backend without inference/model calls. Build results and user desktop acceptance must be reported separately.
+
+Pending installed-PC acceptance: installer/shortcuts, tray close/open/quit, launch at sign-in, remembered desktop pairing, continued GPT/tool use, backend update/reconnect, and an actual later desktop-shell update. User reported successful file creation, action denial, harmless PowerShell execution and cancellation before desktop development; UAC remains a separate pending test.

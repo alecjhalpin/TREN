@@ -9,7 +9,7 @@ concurrency:
   group: tren-release
   cancel-in-progress: false
 jobs:
-  release:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,20 +19,64 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Build manifest release
+      - name: Build and verify backend
         run: |
-          python - <<'PYCODE'
-          import json
-          from pathlib import Path
-          from build_release import build
-          v=json.loads(Path('version.json').read_text())['version']
-          build('.', 'TREN-v'+v+'.zip')
-          PYCODE
-      - name: Run regression and UI logic tests
-        run: |
+          python -c "import json; from build_release import build; build('.', 'TREN-v'+json.load(open('version.json'))['version']+'.zip')"
           python -m unittest discover -s tests -v
           node tests/ui_logic.cjs
-      - name: Publish a new stable release
+          node --test desktop/test.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend
+          path: TREN-v*.zip
+  desktop:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Desktop transport and real Windows window smoke test
+        working-directory: desktop
+        shell: pwsh
+        run: |
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:TREN_DESKTOP_ROOT = (Resolve-Path '..').Path
+          $env:TREN_PYTHON = (Get-Command python).Source
+          node_modules/.bin/electron.cmd . --smoke-test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Package Windows installer
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        shell: pwsh
+        run: |
+          npm run dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Force release-out | Out-Null
+          Copy-Item dist/*.exe,dist/*.blockmap,dist/latest.yml,smoke-output/*.png release-out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: desktop/release-out/*
+  publish:
+    needs: [validate, desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish only after both builds pass
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.sha }}
@@ -41,5 +85,5 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release $tag already exists; leaving its assets unchanged."
           else
-            gh release create "$tag" "TREN-$tag.zip" --target "$SOURCE_SHA" --title "TREN $tag" --generate-notes
+            gh release create "$tag" release-assets/* --target "$SOURCE_SHA" --title "TREN $tag" --generate-notes
           fi

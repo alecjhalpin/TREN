@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.0 — 2026-10-12
+
+Windows Electron desktop companion with existing-folder selection, hidden Python startup, dedicated conversation window, tray lifecycle, opt-in login launch, single desktop instance and explicit shell-update controls. Adds saved light/dark/system appearance to browser and desktop. Local backend controller requires a random desktop-only credential; the renderer cannot access it. Existing pairing, GPT/Codex/Ollama, data and backend updater remain in place. Windows packaging and live acceptance are distinct from fixtures.
+
 One release history for TREN. Older source snapshots remain in Git tags and Releases.
 
 ## 0.8.4 — 2026-10-12

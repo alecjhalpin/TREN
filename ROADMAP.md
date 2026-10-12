@@ -9,7 +9,7 @@ v0.8 provides general PC-tool planning/execution/results, reviewed commands and 
 ## Next priorities
 
 1. Expand verified PC inspection and test a temporary-file task, an approved harmless PowerShell command, denial/cancellation and an explicitly requested harmless elevated diagnostic. Inspect logs before retrying any partially completed task.
-2. Desktop shortcut/launcher and tray: no routine CMD launch, startup status/open/quit, optional Windows startup, reliable single instance. Continue the GitHub release workflow.
+2. Verify the v0.9 desktop companion: installer/shortcuts, tray lifecycle, sign-in launch, remembered pairing and backend/shell updates. Continue desktop polish using the existing backend.
 3. Private iPhone access/usable packaging on the same backend, verified Safari sessions and task approvals.
 4. Voice input/output, latency and interruption, using supported routes compatible with the spending requirement.
 5. Abstract animated orb with listening/thinking/speaking states and floating task panels; no human avatar; keep text chat.

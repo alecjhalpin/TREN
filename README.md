@@ -29,13 +29,14 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside TREN, back up app files and restart while preserving your data. |
 
-## What's new in v0.8.4
+## What's new in v0.9.0
 
-- **GPT chooses Auto's mode:** a tool-free routing request selects conversation, PC Agent, Codex build or Codex review from the request and recent chat.
-- **Visible recommendations:** TREN shows the chosen mode and a short reason. Manual mode choices bypass Auto; Codex still opens the task-review dialog before starting work.
-- **Chat stays chat:** greetings, thanks, advice and planning can use ordinary conversation without creating a PC job.
+- **Windows desktop companion:** dedicated chat window, desktop/Start menu shortcuts, tray Open/Quit, optional sign-in launch and one desktop instance.
+- **Remembered appearance:** Light, Dark or Follow Windows/device, plus a quick toggle. Works in both the desktop window and browser.
+- **Existing installation continuity:** the desktop companion launches or connects to your selected Tren-Local folder, using its data, providers and backend update path.
+- **Separate desktop updates:** check desktop-shell releases from the native menu; backend releases remain in TREN Settings.
 
-**Verification:** live drive inspection is user-confirmed. Routing control flow is tested with synthetic GPT decisions; basic Auto routing is now user-confirmed; broader classification quality and latency still need evaluation. Auto routing uses an additional ChatGPT request and plan usage. With Ollama selected as preferred provider, Auto uses local conversation; PC/Codex remain available manually.
+Update your existing backend to v0.9.0 first, then install **TREN-Desktop-Setup-0.9.0.exe** from [Releases](https://github.com/alecjhalpin/TREN/releases/latest). See [desktop setup](https://github.com/alecjhalpin/TREN/blob/main/docs/DESKTOP.md). Windows desktop build/smoke verification and user acceptance are tracked separately in [Testing](https://github.com/alecjhalpin/TREN/blob/main/docs/TESTING.md).
 
 ## Getting started
 
@@ -63,7 +64,7 @@ If an update fails its startup check, inspect `data/updates/restart.log` in the 
 
 ## What's next
 
-Desktop launch without a terminal, private iPhone access, voice, and an animated orb interface are planned. Visual desktop/browser automation is also future work. TREN currently uses a browser interface; these plans are not delivered desktop or iPhone apps.
+Further desktop polish, private iPhone access, voice, and an animated orb interface are planned. Visual desktop/browser automation is also future work. The desktop companion wraps the current conversation interface; a native iPhone app and voice are not delivered.
 
 [Roadmap and v1.0 criteria](ROADMAP.md) · [Private phone setup](PHONE-SETUP.md) · [ChatGPT integration details](https://github.com/alecjhalpin/TREN/blob/main/docs/TECHNICAL.md)
 
@@ -76,7 +77,7 @@ Desktop launch without a terminal, private iPhone access, voice, and an animated
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.8.4.zip
+python build_release.py TREN-v0.9.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

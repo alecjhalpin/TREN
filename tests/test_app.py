@@ -193,6 +193,23 @@ class AssistantTests(unittest.TestCase):
             self.assertEqual(self.request('/api/auto/route',{'message':'x'},{'Origin':'https://evil.example'})[0],403)
             agent.submit.assert_not_called();coding.submit.assert_not_called()
 
+    def test_desktop_controller_is_private_and_requires_exact_token(self):
+        import hashlib,os
+        with patch.object(a,'DESKTOP_TOKEN','synthetic-desktop-controller'):
+            status,result,_=self.request('/api/desktop/status')
+            self.assertEqual(status,200)
+            self.assertEqual(result['installation'],hashlib.sha256(os.path.normcase(str(a.ROOT)).encode()).hexdigest())
+            self.assertNotIn('synthetic-desktop-controller',json.dumps(result))
+            self.assertEqual(self.request('/api/desktop/stop',{'confirmed':True})[0],401)
+            self.assertEqual(self.request('/api/desktop/stop',{'confirmed':True},{'X-TREN-Desktop':'wrong'})[0],401)
+            self.assertEqual(self.request('/api/desktop/stop',{'confirmed':False},{'X-TREN-Desktop':'synthetic-desktop-controller'})[0],400)
+            self.assertEqual(self.request('/api/desktop/stop',{'confirmed':True},{'X-TREN-Desktop':'synthetic-desktop-controller','Origin':'https://evil.example'})[0],403)
+            stopped=threading.Event()
+            with patch.object(self.server,'shutdown',side_effect=stopped.set),patch.object(a,'STOP') as stop:
+                self.assertEqual(self.request('/api/desktop/stop',{'confirmed':True},{'X-TREN-Desktop':'synthetic-desktop-controller'})[0],200)
+                self.assertTrue(stopped.wait(2))
+                stop.set.assert_called_once()
+
     def test_second_instance_does_not_touch_running_job_state(self):
         with patch.object(sys,'argv',['app.py','--no-browser']),patch.object(a,'TrenHTTPServer',side_effect=OSError('port in use')),patch.object(a,'init') as initialize:
             a.main()

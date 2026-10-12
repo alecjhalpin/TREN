@@ -1,0 +1,52 @@
+{
+  "name": "tren-desktop",
+  "version": "0.9.0",
+  "private": true,
+  "description": "TREN Windows desktop companion",
+  "author": "TREN",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test.cjs",
+    "dist": "electron-builder --win nsis --x64 --publish never",
+    "predist": "node build-icon.cjs"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.3"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.alecjhalpin.tren",
+    "productName": "TREN",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "runtime.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "TREN-Desktop-Setup-${version}.${ext}",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "alecjhalpin",
+        "repo": "TREN"
+      }
+    ]
+  }
+}

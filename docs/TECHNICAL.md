@@ -1,6 +1,6 @@
 # TREN technical guide
 
-Current source: v0.8.4. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
+Current source: v0.9.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
 
 ## Architecture and providers
 
@@ -90,3 +90,7 @@ Old installations need the one-time upgrade.bat bootstrap described in the main 
 - [Function calling](https://developers.openai.com/api/docs/guides/function-calling)
 - [Codex noninteractive use](https://developers.openai.com/codex/noninteractive)
 - [Codex on Windows](https://developers.openai.com/codex/windows)
+
+## Desktop companion
+
+The Electron companion runs the existing installation through its saved folder selection, using a sandboxed, isolated renderer and native tray/menus. It has no preload bridge or renderer Node access. A random in-memory native controller credential is passed to the owned backend through its environment; control requests are loopback-only and require the exact credential, confirmation and host/origin checks. The status endpoint returns only version, installation fingerprint and controller hash, not paths or credentials. Backend updater children inherit the controller environment so native Quit can still address the current owned backend after a backend update. See [Desktop setup](DESKTOP.md).

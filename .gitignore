@@ -6,3 +6,10 @@ allowed-hosts.txt
 *.zip
 update-manifest.json
 *.log
+
+node_modules/
+desktop/dist/
+desktop/smoke-output/
+desktop/build/
+core
+desktop/release-out/

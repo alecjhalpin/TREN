@@ -38,6 +38,7 @@ SESSIONS = {}
 ATTEMPTS = {}
 STOP = threading.Event()
 UPDATING = threading.Event()
+DESKTOP_TOKEN = os.getenv('TREN_DESKTOP_TOKEN','')
 VERSION = update_runtime.current_version(ROOT)
 
 
@@ -477,6 +478,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self.valid_host():
             return self.send(403, {'error': 'Host not allowed. Add the exact phone hostname to allowed-hosts.txt and restart.'})
         path = urllib.parse.urlsplit(self.path).path
+        if path == '/api/desktop/status':
+            installation=hashlib.sha256(os.path.normcase(str(ROOT)).encode()).hexdigest()
+            controller=hashlib.sha256(DESKTOP_TOKEN.encode()).hexdigest() if DESKTOP_TOKEN else None
+            return self.send(200,{'application':'TREN','version':VERSION,'installation':installation,'controller':controller})
         if path == '/':
             return self.send(200, (ROOT / 'index.html').read_bytes(), 'text/html; charset=utf-8')
         if path == '/favicon.ico':
@@ -534,6 +539,20 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError('JSON object required.')
             path = urllib.parse.urlsplit(self.path).path
+            if path == '/api/desktop/stop':
+                supplied=self.headers.get('X-TREN-Desktop','')
+                if not DESKTOP_TOKEN or not secrets.compare_digest(supplied,DESKTOP_TOKEN):
+                    return self.send(401,{'error':'Desktop controller required.'})
+                if body.get('confirmed') is not True:
+                    raise ValueError('Confirm stopping TREN.')
+                if UPDATING.is_set():
+                    raise ValueError('Wait for the backend update to finish before quitting.')
+                def stop_desktop():
+                    time.sleep(.2)
+                    STOP.set()
+                    self.server.shutdown()
+                threading.Thread(target=stop_desktop,daemon=True).start()
+                return self.send(200,{'ok':True})
             if path == '/api/login':
                 supplied = text_field(body, 'code', 100)
                 remember = body.get('remember', False)
