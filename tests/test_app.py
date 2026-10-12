@@ -219,6 +219,14 @@ class AssistantTests(unittest.TestCase):
         a.init()
         self.assertEqual(a.state()['profile']['name'],'Custom Name')
 
+    def test_repository_rename_migrates_only_the_legacy_default(self):
+        a.set_setting('update_repository','alecjhalpin/TREN')
+        a.init()
+        self.assertEqual(a.setting('update_repository'),'alecjhalpin/Veyra')
+        a.set_setting('update_repository','someone/custom')
+        a.init()
+        self.assertEqual(a.setting('update_repository'),'someone/custom')
+
     def test_assistant_profile_requires_pairing_and_persists(self):
         self.assertEqual(self.request('/api/profile',{'name':'Nova','completed':False})[0],401)
         self.login()

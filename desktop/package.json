@@ -1,6 +1,6 @@
 {
   "name": "tren-desktop",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "private": true,
   "description": "VEYRA \u2014 Your AI. Your computer. Your rules.",
   "author": "VEYRA",
@@ -41,15 +41,18 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VEYRA",
+      "include": "installer/options.nsh",
+      "runAfterFinish": false
     },
     "publish": [
       {
         "provider": "github",
         "owner": "alecjhalpin",
-        "repo": "TREN"
+        "repo": "Veyra"
       }
     ],
     "extraResources": [

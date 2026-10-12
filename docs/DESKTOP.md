@@ -18,7 +18,7 @@ The themed draggable title bar contains an application-menu button and native wi
 4. If an already-running compatible backend belongs to that folder, the window connects to it. Otherwise it launches the existing Python backend without a console window. The first version uses port 8765, or TREN_PORT when configured in the launching environment.
 5. Pair the desktop window once. Native VEYRA menu → Show pairing code → Copy code displays the local installation's code. Paste it into the pairing screen and leave Remember this device checked. Desktop cookies are separate from browser cookies.
 
-This is an unsigned first installer. Windows may display an unknown-publisher warning; release assets are published under alecjhalpin/TREN. Do not delete your existing Tren-Local folder: this companion still uses it. New users can use the bundled first-launch setup.
+This is an unsigned first installer. Windows may display an unknown-publisher warning; release assets are published under alecjhalpin/Veyra. Do not delete your existing Tren-Local folder: this companion still uses it. New users can use the bundled first-launch setup.
 
 ## Window, tray and appearance
 
@@ -46,12 +46,16 @@ This milestone includes first-install backend/Python/Node packaging. Models and 
 
 ## Earlier desktop build evidence
 
-The earlier v0.9.0 Windows smoke test and installer build passed in [the release workflow](https://github.com/alecjhalpin/TREN/actions/runs/38248472618). The actual captured window layouts were reviewed: [Light](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-light.png) / [Dark](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-dark.png). The preview conversations are synthetic layout fixtures. Local installed-app acceptance remains separate.
+The earlier v0.9.0 Windows smoke test and installer build passed in [the release workflow](https://github.com/alecjhalpin/Veyra/actions/runs/38248472618). The actual captured window layouts were reviewed: [Light](https://github.com/alecjhalpin/Veyra/releases/download/v0.9.0/TREN-Desktop-light.png) / [Dark](https://github.com/alecjhalpin/Veyra/releases/download/v0.9.0/TREN-Desktop-dark.png). The preview conversations are synthetic layout fixtures. Local installed-app acceptance remains separate.
 
 ## Current first-install build evidence
 
-The v0.10.0 existing/fresh Windows smoke tests and installer build passed in [Actions](https://github.com/alecjhalpin/TREN/actions/runs/38252658975). Reviewed captures: [Welcome](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Onboarding.png), [Mode menu](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Mode-Menu.png), [Light](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Desktop-light.png), [Dark](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Desktop-dark.png). The preview assistant name and messages are synthetic layout fixtures. Local provider consent and optional-tool installation still need real-user acceptance.
+The v0.10.0 existing/fresh Windows smoke tests and installer build passed in [Actions](https://github.com/alecjhalpin/Veyra/actions/runs/38252658975). Reviewed captures: [Welcome](https://github.com/alecjhalpin/Veyra/releases/download/v0.10.0/TREN-Onboarding.png), [Mode menu](https://github.com/alecjhalpin/Veyra/releases/download/v0.10.0/TREN-Mode-Menu.png), [Light](https://github.com/alecjhalpin/Veyra/releases/download/v0.10.0/TREN-Desktop-light.png), [Dark](https://github.com/alecjhalpin/Veyra/releases/download/v0.10.0/TREN-Desktop-dark.png). The preview assistant name and messages are synthetic layout fixtures. Local provider consent and optional-tool installation still need real-user acceptance.
 
 ## VEYRA branding and compatibility
 
-The public name and installer changed in v0.11.0; repository `alecjhalpin/TREN`, appId `com.alecjhalpin.tren`, internal package/executable identity, controller protocol, environment variables, profile and installation paths remain compatible. Electron selects an existing legacy profile in place before Chromium starts; it does not move cookies or managed backends. Backend release ZIPs remain `TREN-vVERSION.zip` for old updater compatibility. Do not rename/delete the existing Tren-Local folder. Installed v0.10→v0.11 desktop upgrade, Windows sign-in launch and shortcut transition still require user acceptance.
+The public name and installer changed in v0.11.0; repository `alecjhalpin/Veyra`, appId `com.alecjhalpin.tren`, internal package/executable identity, controller protocol, environment variables, profile and installation paths remain compatible. Electron selects an existing legacy profile in place before Chromium starts; it does not move cookies or managed backends. Backend release ZIPs remain `TREN-vVERSION.zip` for old updater compatibility. Do not rename/delete the existing Tren-Local folder. Installed v0.10→v0.11 desktop upgrade, Windows sign-in launch and shortcut transition still require user acceptance.
+
+## v0.11.1 installer options
+
+The installer offers a folder field/Browse control and “Create a desktop shortcut” checkbox, checked by default. Start menu shortcuts are named VEYRA. New program folders default to the per-user Programs/VEYRA directory; upgrades replace an old TREN folder leaf with VEYRA in the same parent, while custom non-TREN folder paths remain. Backend/Chromium profile/data locations remain in place. Internal executable TREN.exe and appId remain compatible; they are separate from the visible folder and shortcut brand. Silent desktop updates retain whether a desktop shortcut exists. The exact legacy update repository is migrated to alecjhalpin/Veyra; custom repositories are retained.

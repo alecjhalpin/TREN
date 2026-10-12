@@ -8,12 +8,12 @@
 
 ChatGPT conversation · Local Ollama fallback · PC tools · Codex coding
 
-[![Release](https://img.shields.io/github/v/release/alecjhalpin/TREN)](https://github.com/alecjhalpin/TREN/releases)
-[![Checks](https://github.com/alecjhalpin/TREN/actions/workflows/release.yml/badge.svg)](https://github.com/alecjhalpin/TREN/actions/workflows/release.yml)
+[![Release](https://img.shields.io/github/v/release/alecjhalpin/Veyra)](https://github.com/alecjhalpin/Veyra/releases)
+[![Checks](https://github.com/alecjhalpin/Veyra/actions/workflows/release.yml/badge.svg)](https://github.com/alecjhalpin/Veyra/actions/workflows/release.yml)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D4)
 ![Status](https://img.shields.io/badge/status-early_development-orange)
 
-[Download](https://github.com/alecjhalpin/TREN/releases/latest) · [Setup](#getting-started) · [Updates](#updating-veyra) · [Roadmap](ROADMAP.md)
+[Download](https://github.com/alecjhalpin/Veyra/releases/latest) · [Setup](#getting-started) · [Updates](#updating-veyra) · [Roadmap](ROADMAP.md)
 
 </div>
 
@@ -31,25 +31,24 @@ VEYRA is a Windows-first assistant with a conversational browser interface. Talk
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside VEYRA, back up app files and restart while preserving your data. |
 
-## What's new in v0.11.0
+## What's new in v0.11.1
 
-- **VEYRA branding:** application name, welcome artwork, desktop/menu/tray labels and installer branding now use VEYRA.
-- **New app icon and blue accents:** a transparent V icon accompanies restrained blue highlights in both themes.
-- **Your assistant, your name:** new assistants start with Nova as the example; custom names and returning TREN identities remain intact.
-- **Compatible transition:** desktop profiles, backend data, pairing, credentials, models and the existing update repository/ZIP format are preserved.
+- **VEYRA install folder:** branded folder defaults independently from legacy compatibility identifiers; previous TREN program folders are replaced through the installer while assistant data stays in place.
+- **Shortcut choice:** choose the installation folder and a checked-by-default “Create a desktop shortcut” option. Start menu shortcuts are named VEYRA.
+- **Renamed GitHub repository:** backend defaults, desktop updater and documentation use alecjhalpin/Veyra; the exact old default is migrated without changing custom update sources.
 
-The application is VEYRA; your assistant can have any supported name. The GitHub repository remains `alecjhalpin/TREN`. Backend ZIPs retain `TREN-vVERSION.zip` so existing updaters can install the rebrand.
+The application is VEYRA; your assistant can have any supported name. The GitHub repository remains `alecjhalpin/Veyra`. Backend ZIPs retain `TREN-vVERSION.zip` so existing updaters can install the rebrand.
 
 ## Getting started
 
 ### New Windows installation
 
-1. Download **VEYRA-Desktop-Setup-0.11.0.exe** from [Releases](https://github.com/alecjhalpin/TREN/releases/latest) and run it.
+1. Download **VEYRA-Desktop-Setup-0.11.1.exe** from [Releases](https://github.com/alecjhalpin/Veyra/releases/latest) and run it.
 2. Open the desktop shortcut. The app prepares its bundled backend/runtimes if no existing installation is found.
 3. Choose your assistant's name and connect ChatGPT in the welcome flow. No API key is configured for this connection; eligible-plan limits apply.
 4. Optionally install/check Codex and connect its separate ChatGPT CLI login. Choose local AI only if you want Ollama and its roughly 5 GB default model download.
 
-Basic ChatGPT/PC-agent setup no longer needs a separate Python/Node installation or mandatory Ollama download. Existing compatible Python installations can be reused; bundled runtime files do not replace global installations. Optional Ollama setup uses Windows winget and may show its installer/UAC prompt. See [Desktop setup](https://github.com/alecjhalpin/TREN/blob/main/docs/DESKTOP.md).
+Basic ChatGPT/PC-agent setup no longer needs a separate Python/Node installation or mandatory Ollama download. Existing compatible Python installations can be reused; bundled runtime files do not replace global installations. Optional Ollama setup uses Windows winget and may show its installer/UAC prompt. See [Desktop setup](https://github.com/alecjhalpin/Veyra/blob/main/docs/DESKTOP.md).
 
 ### Existing TREN users
 
@@ -61,7 +60,7 @@ The release ZIP and setup.bat remain available for manual/source installations. 
 
 ## Updating VEYRA
 
-For installations with in-app updates: **Settings → Updates → Check for updates → Download update → Install & restart**. Use repository `alecjhalpin/TREN`.
+For installations with in-app updates: **Settings → Updates → Check for updates → Download update → Install & restart**. Use repository `alecjhalpin/Veyra`.
 
 Updates preserve current data, pairing secrets, projects, host settings and installed models. Finish or cancel active work first. **Do not rerun setup to upgrade.**
 
@@ -78,18 +77,18 @@ If an update fails its startup check, inspect `data/updates/restart.log` in the 
 
 Further desktop polish, private iPhone access, voice, and an animated orb interface are planned. Visual desktop/browser automation is also future work. The desktop companion wraps the current conversation interface; a native iPhone app and voice are not delivered.
 
-[Roadmap and v1.0 criteria](ROADMAP.md) · [Private phone setup](PHONE-SETUP.md) · [ChatGPT integration details](https://github.com/alecjhalpin/TREN/blob/main/docs/TECHNICAL.md)
+[Roadmap and v1.0 criteria](ROADMAP.md) · [Private phone setup](PHONE-SETUP.md) · [ChatGPT integration details](https://github.com/alecjhalpin/Veyra/blob/main/docs/TECHNICAL.md)
 
 ## Documentation
 
-[Setup and updates](#getting-started) · [Phone setup](PHONE-SETUP.md) · [Technical guide](https://github.com/alecjhalpin/TREN/blob/main/docs/TECHNICAL.md) · [Testing and acceptance](https://github.com/alecjhalpin/TREN/blob/main/docs/TESTING.md) · [Changelog](CHANGELOG.md)
+[Setup and updates](#getting-started) · [Phone setup](PHONE-SETUP.md) · [Technical guide](https://github.com/alecjhalpin/Veyra/blob/main/docs/TECHNICAL.md) · [Testing and acceptance](https://github.com/alecjhalpin/Veyra/blob/main/docs/TESTING.md) · [Changelog](CHANGELOG.md)
 
 ## Development
 
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.11.0.zip
+python build_release.py TREN-v0.11.1.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

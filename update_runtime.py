@@ -257,7 +257,7 @@ class Manager:
     def __init__(self,root,data,get_setting,set_setting):
         self.root=Path(root);self.data=Path(data);self.get_setting=get_setting;self.set_setting=set_setting;self.lock=threading.RLock();self.latest=None;self.staged=None;self.busy=False
     def state(self):
-        result={'version':current_version(self.root),'repository':self.get_setting('update_repository','alecjhalpin/TREN'),'busy':self.busy,'latest':self.latest,'staged':None}
+        result={'version':current_version(self.root),'repository':self.get_setting('update_repository','alecjhalpin/Veyra'),'busy':self.busy,'latest':self.latest,'staged':None}
         if self.staged:result['staged']={'version':self.staged['version'],'source':self.staged['origin']}
         p=self.data/'updates/status.json'
         try:result['last_result']=json.loads(p.read_text())

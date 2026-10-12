@@ -76,6 +76,8 @@ def init():
         complete=c.execute("SELECT value FROM settings WHERE key='onboarding_complete'").fetchone()
         if complete and complete['value']=='1':
             c.execute("INSERT OR IGNORE INTO settings(key,value) VALUES('assistant_name','TREN')")
+    if setting('update_repository','').lower()=='alecjhalpin/tren':
+        set_setting('update_repository','alecjhalpin/Veyra')
     code_path = DATA / 'pairing-code.txt'
     if not code_path.exists():
         code_path.write_text(secrets.token_urlsafe(18), encoding='utf-8')

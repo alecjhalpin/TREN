@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1 — 2026-10-12
+
+Separate VEYRA installer folder branding from the retained legacy executable/appId/profile. Add an installation-folder/desktop-shortcut options page and VEYRA shortcut names, retain desktop-shortcut choice on silent updates, and update matching login-launch registry entries when the legacy program folder changes. Use renamed alecjhalpin/Veyra release repository; migrate only the exact old backend default. User confirmed the harmless elevated administrator/UAC diagnostic worked. Installer build and fresh/upgrade acceptance are verified separately.
+
 ## 0.11.0 — 2026-10-12
 
 Rebrand the public application to VEYRA with the tagline “Your AI. Your computer. Your rules.” Add approved hero artwork, a transparent simplified V desktop icon, blue theme accents and branded Windows installer/menu/tray/welcome flow. New unnamed assistants use Nova; returning unnamed assistants retain TREN and explicit names are preserved. Keep legacy package/app/update identifiers, executable name, desktop profiles, storage paths and backend ZIP names compatible. New OAuth consent displays VEYRA; existing protected credentials are retained. Automated and Windows release acceptance is recorded in docs/TESTING.md separately from user acceptance.
