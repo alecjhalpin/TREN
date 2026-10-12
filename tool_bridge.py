@@ -27,7 +27,8 @@ class ToolBridge:
                         except (ValueError,queue.Full):pass
                 finally:
                     with self.lock:
-                        for target in self.pending.values():
+                        targets=list(self.pending.values()) if self.proc is proc else []
+                        for target in targets:
                             try:target.put_nowait({'error':'Tool worker ended; inspect actions before retrying.'})
                             except queue.Full:pass
             threading.Thread(target=read,daemon=True).start()
@@ -65,9 +66,13 @@ class ToolBridge:
                 try:ct.stop_process(proc)
                 except (OSError,subprocess.SubprocessError):pass
             self.proc=None
+            for target in self.pending.values():
+                try:target.put_nowait({'error':'Tool worker stopped; inspect actions before retrying.'})
+                except queue.Full:pass
     def close(self):
         with self.lock:
             self.closed=True
+            self.stop_all()
             if self.proc:
                 try:ct.stop_process(self.proc)
                 except (OSError,subprocess.SubprocessError):pass

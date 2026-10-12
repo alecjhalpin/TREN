@@ -37,7 +37,7 @@ VEYRA is a Windows-first assistant with a conversational browser interface. Talk
 - **Shortcut choice:** choose the installation folder and a checked-by-default “Create a desktop shortcut” option. Start menu shortcuts are named VEYRA.
 - **Renamed GitHub repository:** backend defaults, desktop updater and documentation use alecjhalpin/Veyra; the exact old default is migrated without changing custom update sources.
 
-The application is VEYRA; your assistant can have any supported name. The GitHub repository remains `alecjhalpin/Veyra`. Backend ZIPs retain `TREN-vVERSION.zip` so existing updaters can install the rebrand.
+The application is VEYRA; your assistant can have any supported name. The GitHub repository remains `alecjhalpin/Veyra`.
 
 ## Getting started
 

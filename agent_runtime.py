@@ -400,7 +400,7 @@ class Engine:
                     step={'tool':name,'status':'running','arguments':ct.redact(json.dumps(args))[:8000],'created':time.time(),'mutation':mutation,'digest':digest};steps.append(step)
                     self.update(jid,steps=steps,checkpoint={'messages':messages,'seen':list(seen),'mutations':list(mutations)})
                     try:
-                        if mutation and digest in mutations:raise RuntimeError('This action occurred or was interrupted in a prior checkpoint. Inspect actual state; do not replay it automatically.')
+                        if mutation and digest in mutations:raise PermissionError('This action occurred or was interrupted in a prior checkpoint. Inspect actual state; do not replay it automatically.')
                         if mutation and not self.authorize(jid,name,args,cancel,budget,permission):raise PermissionError('Action denied, cancelled or approval expired.')
                         if cancelled():raise InterruptedError()
                         if mutation:mutations.add(digest)

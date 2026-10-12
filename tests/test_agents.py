@@ -106,3 +106,14 @@ class AgentTests(unittest.TestCase):
    self.assertEqual(c.execute("SELECT value FROM settings WHERE key='assistant_name'").fetchone()[0],'Nova')
    self.assertEqual(c.execute("SELECT value FROM settings WHERE key='pc_agent_mode'").fetchone()[0],'review')
    self.assertEqual(c.execute("SELECT value FROM settings WHERE key='private_token'").fetchone()[0],'must stay private')
+ def test_uncertain_mutation_is_not_replayed_from_checkpoint(self):
+  path=self.data/'projects/default/once.txt';args={'action':'write','path':str(path),'destination':'','content':'once','pattern':'','limit':10}
+  self.response=lambda *a:{'text':'','output':[],'calls':[{'name':'pc_files','call_id':'fixture','arguments':json.dumps(args)}]}
+  original=self.engine.dispatch;executions=[]
+  def interrupted_dispatch(*args):
+   executions.append(1);original(*args);raise RuntimeError('Transport interrupted after write')
+  self.engine.dispatch=interrupted_dispatch
+  first=self.wait(self.engine.submit('default','Write once'))
+  self.assertEqual(first['status'],'uncertain');self.assertEqual(path.read_text(),'once')
+  second=self.wait(self.engine.submit('default','Write once',resume=first['id']))
+  self.assertEqual(second['status'],'denied');self.assertEqual(len(executions),1);self.assertEqual(path.read_text(),'once')

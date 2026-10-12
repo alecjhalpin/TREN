@@ -57,7 +57,7 @@ async function browser(p,signal){
    case 'tabs':return {tabs:[...entry.tabs].filter(([,v])=>!v.isClosed()).map(([id,v])=>({id,url:v.url()}))};
    case 'new_tab':{const newPage=registerPage(entry,await entry.context.newPage());return {tab:[...entry.tabs].find(([,v])=>v===newPage)[0]}}
    case 'close_tab':await page.close();return {ok:true};
-   case 'screenshot':{const dir=path.join(data,'browser_artifacts');fs.mkdirSync(dir,{recursive:true});const file=path.join(dir,crypto.randomUUID()+'.png');await page.screenshot({path:file,fullPage:options.full_page!==false});return {file,url:page.url()}}
+   case 'screenshot':{const dir=path.join(data,'projects',safeId(p.workspace||'default'),'screenshots');fs.mkdirSync(dir,{recursive:true});const file=path.join(dir,crypto.randomUUID()+'.png');await page.screenshot({path:file,fullPage:options.full_page!==false});return {file,url:page.url()}}
    case 'download':{const next=page.waitForEvent('download',{timeout:45000});await locator().click();const download=await next;const dir=path.join(data,'projects',safeId(p.workspace||'default'),'downloads');fs.mkdirSync(dir,{recursive:true});const file=path.join(dir,crypto.randomUUID()+'-'+path.basename(download.suggestedFilename()));await download.saveAs(file);return {file,error:await download.failure()}}
    case 'upload':{const file=path.resolve(String(options.path||''));if(!fs.statSync(file).isFile())throw Error('Choose an existing file');await locator().setInputFiles(file);break}
    case 'attribute':return {value:await locator().getAttribute(String(options.attribute||'href'))};
@@ -107,15 +107,21 @@ class MCPConnection{
    const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',total=0;
    try{while(true){const {value,done}=await reader.read();if(done)break;total+=value.length;if(total>2*1024*1024)throw Error('Oversized MCP response');buffer=(buffer+decoder.decode(value,{stream:true})).replaceAll('\r\n','\n');let index;while((index=buffer.indexOf('\n\n'))>=0){const event=buffer.slice(0,index).replaceAll('\r','');buffer=buffer.slice(index+2);const raw=event.split('\n').filter(v=>v.startsWith('data:')).map(v=>v.slice(5).trim()).join('\n');if(raw){const packetOut=JSON.parse(raw);if(packetOut.id===packet.id){if(packetOut.error)throw Error(packetOut.error.message);return packetOut.result}}}}}finally{await reader.cancel().catch(()=>{})}throw Error('MCP stream ended without response');
   }
-  const text=await response.text();if(text.length>2*1024*1024)throw Error('Oversized MCP response');const result=JSON.parse(text);if(result.error)throw Error(result.error.message);return result.result;
+  const reader=response.body.getReader(),chunks=[];let size=0;try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>2*1024*1024)throw Error('Oversized MCP response');chunks.push(Buffer.from(value))}}finally{await reader.cancel().catch(()=>{})}const result=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(result.error)throw Error(result.error.message);return result.result;
  }
  async close(){this.fail(Error('MCP connection closed'));if(this.proc){this.proc.kill();this.proc=null}if(this.session){await fetch(this.config.url,{method:'DELETE',headers:{...this.config.headers,'Mcp-Session-Id':this.session,'MCP-Protocol-Version':this.version},signal:AbortSignal.timeout(3000)}).catch(()=>{})}}
 }
 async function mcp(params,signal){const key=safeId(params.id),fp=fingerprint(params.config);let entry=mcpPool.get(key);if(entry&&entry.fingerprint!==fp){await entry.connection.close();mcpPool.delete(key);entry=null}if(!entry){const connection=new MCPConnection(params.config);entry={connection,fingerprint:fp,ready:connection.start(signal)};mcpPool.set(key,entry);try{await entry.ready}catch(error){mcpPool.delete(key);await connection.close();throw error}}else await entry.ready;check(signal);if(params.operation==='list'||entry.connection.toolsDirty){entry.connection.tools=(await entry.connection.rpc('tools/list',{},signal)).tools||[];entry.connection.toolsDirty=false;if(params.operation==='list')return {tools:entry.connection.tools,protocol:entry.connection.version};}if(params.operation==='call'){if(!entry.connection.tools.some(t=>t.name===params.tool))throw Error('MCP tool not advertised by server');return entry.connection.rpc('tools/call',{name:params.tool,arguments:params.arguments||{}},signal)}if(params.operation==='close'){await entry.connection.close();mcpPool.delete(key);return {ok:true}}throw Error('Invalid MCP operation')}
+// Transformers 3.x closes its cache stream asynchronously. Windows native ONNX
+// can briefly reject a freshly cached file while that writer is still closing.
+// Retry only model initialization with this specific sharing error, never tools.
+async function loadLocalModel(factory){
+ for(let attempt=0;;attempt++){try{return await factory()}catch(error){if(process.platform!=='win32'||attempt>=2||!String(error.message).includes('system error number 13'))throw error;await new Promise(resolve=>setTimeout(resolve,500))}}
+}
 async function voice(params,signal){
  const cache=path.join(data,'voice_models');
- const loadASR=()=>{if(!asrPromise){asrPromise=(async()=>{const {pipeline,env}=await dependency('@huggingface/transformers');env.cacheDir=cache;return pipeline('automatic-speech-recognition','onnx-community/whisper-base',{dtype:'q8',device:'cpu'})})();asrPromise.catch(()=>asrPromise=null)}return asrPromise};
- const loadTTS=()=>{if(!ttsPromise){ttsPromise=(async()=>{const {KokoroTTS}=await dependency('kokoro-js');return KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'q8',device:'cpu',cache_dir:cache})})();ttsPromise.catch(()=>ttsPromise=null)}return ttsPromise};
+ const loadASR=()=>{if(!asrPromise){asrPromise=(async()=>{const {pipeline,env}=await dependency('@huggingface/transformers');env.cacheDir=cache;return loadLocalModel(()=>pipeline('automatic-speech-recognition','onnx-community/whisper-base',{dtype:'q8',device:'cpu'}))})();asrPromise.catch(()=>asrPromise=null)}return asrPromise};
+ const loadTTS=()=>{if(!ttsPromise){ttsPromise=(async()=>{const {KokoroTTS}=await dependency('kokoro-js');return loadLocalModel(()=>KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX',{dtype:'q8',device:'cpu'}))})();ttsPromise.catch(()=>ttsPromise=null)}return ttsPromise};
  if(params.operation==='prepare'){await loadASR();check(signal);await loadTTS();check(signal);return {ready:true,model:'Whisper base + Kokoro · local CPU'}};
  if(params.operation==='voices'){const tts=await loadTTS();return {voices:tts.voices}};
  if(params.operation==='speak'){

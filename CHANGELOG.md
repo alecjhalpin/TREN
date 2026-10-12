@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — integrated mega-update (in development)
+
+Source now includes scoped agents and SQLite memory, cron workflows, shared recursion budgets, review/automatic permission handling, durable task evidence and recovery, pooled MCP and Playwright tools, local Whisper/Kokoro voice with an orb, workspace preview, portable backup/restore, an optional elevated worker and a unified desktop update path. These features are undergoing integrated acceptance; they are not a published release.
+
+Verified locally: 95 ordinary automated tests pass, plus the real speech generation/transcription round trip. Windows Edge, packaged UI/microphone, unattended program installation and installer upgrade checks are being run on the development branch. See `docs/DEVELOPMENT.md` for the acceptance matrix and limitations.
+
 ## 0.11.1 — 2026-10-12
 
 Separate VEYRA installer folder branding from the retained legacy executable/appId/profile. Add an installation-folder/desktop-shortcut options page and VEYRA shortcut names, retain desktop-shortcut choice on silent updates, and update matching login-launch registry entries when the legacy program folder changes. Use renamed alecjhalpin/Veyra release repository; migrate only the exact old backend default. User confirmed the harmless elevated administrator/UAC diagnostic worked. Installer build and fresh/upgrade acceptance are verified separately.
