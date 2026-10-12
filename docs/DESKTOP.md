@@ -44,6 +44,6 @@ The renderer has no Node integration; its isolated preload bridge is limited to 
 
 This milestone includes first-install backend/Python/Node packaging. Models and Codex remain optional downloads. It is not a native iPhone app, voice client, visual computer-use driver or animated orb. Local Windows acceptance and CI smoke/build evidence are listed in TESTING.md.
 
-## Verified build and previews
+## Earlier desktop build evidence
 
-The Windows smoke test and installer build passed in [the release workflow](https://github.com/alecjhalpin/TREN/actions/runs/38248472618). The actual captured window layouts were reviewed: [Light](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Desktop-light.png) / [Dark](https://github.com/alecjhalpin/TREN/releases/download/v0.10.0/TREN-Desktop-dark.png). The preview conversations are synthetic layout fixtures. Local installed-app acceptance remains separate.
+The earlier v0.9.0 Windows smoke test and installer build passed in [the release workflow](https://github.com/alecjhalpin/TREN/actions/runs/38248472618). The actual captured window layouts were reviewed: [Light](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-light.png) / [Dark](https://github.com/alecjhalpin/TREN/releases/download/v0.9.0/TREN-Desktop-dark.png). The preview conversations are synthetic layout fixtures. Local installed-app acceptance remains separate.
