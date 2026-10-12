@@ -113,7 +113,7 @@ class ProtocolTests(unittest.TestCase):
                     break
                 time.sleep(.01)
         self.assertEqual(browser_query['client_id'], 'dynamic_agent_client')
-        self.assertEqual(browser_query['agent_name_hint'], 'TREN')
+        self.assertEqual(browser_query['agent_name_hint'], 'VEYRA')
         self.assertTrue(browser_query['ext_agent_host_id'].startswith('urn:uuid:'))
         self.assertEqual(calls[0]['client_id'], 'issued-client')
         challenge = base64.urlsafe_b64encode(hashlib.sha256(calls[0]['code_verifier'].encode()).digest()).rstrip(b'=').decode()

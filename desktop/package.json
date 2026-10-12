@@ -1,9 +1,9 @@
 {
   "name": "tren-desktop",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
-  "description": "TREN Windows desktop companion",
-  "author": "TREN",
+  "description": "VEYRA \u2014 Your AI. Your computer. Your rules.",
+  "author": "VEYRA",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
@@ -20,7 +20,7 @@
   },
   "build": {
     "appId": "com.alecjhalpin.tren",
-    "productName": "TREN",
+    "productName": "VEYRA",
     "directories": {
       "output": "dist"
     },
@@ -29,11 +29,13 @@
       "runtime.cjs",
       "package.json",
       "preload.cjs",
-      "bootstrap.cjs"
+      "bootstrap.cjs",
+      "profile.cjs",
+      "assets/veyra-icon.png"
     ],
     "win": {
       "target": "nsis",
-      "artifactName": "TREN-Desktop-Setup-${version}.${ext}",
+      "artifactName": "VEYRA-Desktop-Setup-${version}.${ext}",
       "icon": "build/icon.ico"
     },
     "nsis": {
@@ -63,6 +65,7 @@
         "from": "resources/node",
         "to": "node"
       }
-    ]
+    ],
+    "executableName": "TREN"
   }
 }

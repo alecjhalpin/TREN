@@ -1,8 +1,10 @@
 <div align="center">
 
-# ◉ TREN
+# VEYRA
 
-**Your personal AI agent. Conversation first. Built for your PC.**
+<img src="assets/veyra-hero.jpg" alt="VEYRA silver V and blue glow" width="280">
+
+**Your AI. Your computer. Your rules.**
 
 ChatGPT conversation · Local Ollama fallback · PC tools · Codex coding
 
@@ -11,15 +13,15 @@ ChatGPT conversation · Local Ollama fallback · PC tools · Codex coding
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D4)
 ![Status](https://img.shields.io/badge/status-early_development-orange)
 
-[Download](https://github.com/alecjhalpin/TREN/releases/latest) · [Setup](#getting-started) · [Updates](#updating-tren) · [Roadmap](ROADMAP.md)
+[Download](https://github.com/alecjhalpin/TREN/releases/latest) · [Setup](#getting-started) · [Updates](#updating-veyra) · [Roadmap](ROADMAP.md)
 
 </div>
 
 ---
 
-TREN is a Windows-first assistant with a conversational browser interface. Talk through an idea, work on a coding project, or ask it to inspect your PC and carry out reviewed actions. Notes, task history and settings stay on your machine; ChatGPT requests use the cloud, while Ollama provides a local conversation option.
+VEYRA (formerly TREN) is a Windows-first assistant with a conversational browser interface. Talk through an idea, work on a coding project, or ask it to inspect your PC and carry out reviewed actions. Notes, task history and settings stay on your machine; ChatGPT requests use the cloud, while Ollama provides a local conversation option.
 
-## What TREN can do
+## What VEYRA can do
 
 | | Capabilities |
 | --- | --- |
@@ -27,20 +29,22 @@ TREN is a Windows-first assistant with a conversational browser interface. Talk 
 | **PC tasks** | Inspect drives and files, manage files, and run reviewed PowerShell commands. Requested administrator commands use Windows UAC. |
 | **Coding** | Queue project-scoped Codex tasks using your existing ChatGPT CLI login. |
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
-| **Updates** | Download releases inside TREN, back up app files and restart while preserving your data. |
+| **Updates** | Download releases inside VEYRA, back up app files and restart while preserving your data. |
 
-## What's new in v0.10.0
+## What's new in v0.11.0
 
-- **One Windows installer for new users:** bundles the backend and private Python/Node runtimes; detects an existing installation and keeps its data. Optional Codex and Ollama/model setup is available inside the app.
-- **Personal assistant setup:** name your assistant, connect ChatGPT, then choose optional tools. The assistant's display name is separate from the application brand.
-- **Integrated desktop chrome:** themed title bar and in-app application menu replace the separate TREN/View menu strip.
-- **Modern mode picker:** readable descriptions for Auto, Chat, PC Agent, Build, Review and provider overrides.
+- **VEYRA branding:** application name, welcome artwork, desktop/menu/tray labels and installer branding now use VEYRA.
+- **New app icon and blue accents:** a transparent V icon accompanies restrained blue highlights in both themes.
+- **Your assistant, your name:** new assistants start with Nova as the example; custom names and returning TREN identities remain intact.
+- **Compatible transition:** desktop profiles, backend data, pairing, credentials, models and the existing update repository/ZIP format are preserved.
+
+The application is VEYRA; your assistant can have any supported name. The GitHub repository remains `alecjhalpin/TREN`. Backend ZIPs retain `TREN-vVERSION.zip` so existing updaters can install the rebrand.
 
 ## Getting started
 
 ### New Windows installation
 
-1. Download **TREN-Desktop-Setup-0.10.0.exe** from [Releases](https://github.com/alecjhalpin/TREN/releases/latest) and run it.
+1. Download **VEYRA-Desktop-Setup-0.11.0.exe** from [Releases](https://github.com/alecjhalpin/TREN/releases/latest) and run it.
 2. Open the desktop shortcut. The app prepares its bundled backend/runtimes if no existing installation is found.
 3. Choose your assistant's name and connect ChatGPT in the welcome flow. No API key is configured for this connection; eligible-plan limits apply.
 4. Optionally install/check Codex and connect its separate ChatGPT CLI login. Choose local AI only if you want Ollama and its roughly 5 GB default model download.
@@ -55,7 +59,7 @@ Update the backend through Settings → Updates first, then update/install the d
 
 The release ZIP and setup.bat remain available for manual/source installations. Python 3.11+ is required for this route; setup.bat installs missing Python/Ollama and downloads the default model. Do not rerun setup.bat to update an existing installation. The default local model is qwen3:8b.
 
-## Updating TREN
+## Updating VEYRA
 
 For installations with in-app updates: **Settings → Updates → Check for updates → Download update → Install & restart**. Use repository `alecjhalpin/TREN`.
 
@@ -85,7 +89,7 @@ Further desktop polish, private iPhone access, voice, and an animated orb interf
 Python standard-library backend, SQLite storage and a single-file frontend.
 
 ```sh
-python build_release.py TREN-v0.10.0.zip
+python build_release.py TREN-v0.11.0.zip
 python -m unittest discover -s tests -v
 node tests/ui_logic.cjs
 ```

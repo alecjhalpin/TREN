@@ -210,6 +210,15 @@ class AssistantTests(unittest.TestCase):
                 self.assertTrue(stopped.wait(2))
                 stop.set.assert_called_once()
 
+    def test_rebrand_keeps_returning_identity_and_new_profiles_use_nova(self):
+        self.assertEqual(a.state()['profile']['name'],'Nova')
+        a.set_setting('onboarding_complete','1')
+        a.init()
+        self.assertEqual(a.state()['profile']['name'],'TREN')
+        a.set_setting('assistant_name','Custom Name')
+        a.init()
+        self.assertEqual(a.state()['profile']['name'],'Custom Name')
+
     def test_assistant_profile_requires_pairing_and_persists(self):
         self.assertEqual(self.request('/api/profile',{'name':'Nova','completed':False})[0],401)
         self.login()

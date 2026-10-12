@@ -26,3 +26,7 @@ For each new release, replace README’s current “What's new” feature list; 
 The public application brand will be selected later; TREN remains the current app/repository/package identity. Each user can name their personal assistant independently in v0.10.0. Future provider choices requested: DeepSeek, Grok and Claude. Their authentication, eligible capabilities, costs and fallback behavior must be designed and verified before integration; they are not currently available. Preserve existing GPT-first plan-sharing and optional Ollama behavior while adding them.
 
 Verify fresh-install runtime/bootstrap, assistant-name onboarding, optional dependency installers, integrated title bar and readable mode picker. Public naming must preserve existing installation/data paths and update identity during any later rebrand.
+
+## Product identity
+
+VEYRA is the public application, with “Your AI. Your computer. Your rules.” as its tagline. Assistant naming is independent; Nova is the onboarding example. Preserve existing profiles, assistant names and update compatibility through the rebrand. Use the approved metallic V artwork for welcome/GitHub branding, a standalone V for app icons and restrained blue UI accents. iPhone, voice, an animated orb and additional providers remain future work.

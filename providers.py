@@ -45,13 +45,13 @@ ERRORS = {
     'subscription_sharing_usage_limit_exceeded': 'Your ChatGPT sharing limit was reached. Check app limits in ChatGPT Settings.',
     'subscription_sharing_usage_unavailable': 'ChatGPT plan usage could not be checked. Try again shortly.',
     'subscription_sharing_user_not_eligible': 'This account or workspace is not eligible for ChatGPT plan sharing.',
-    'subscription_sharing_v2_client_not_enabled': 'TREN is not enabled for plan sharing on this account.',
+    'subscription_sharing_v2_client_not_enabled': 'VEYRA is not enabled for plan sharing on this account.',
     'cancelled': 'ChatGPT sign-in was cancelled.',
     'access_denied': 'ChatGPT permission was declined.',
     'stream_ended': 'ChatGPT stream ended before a completion event. No tool actions from this response were executed.',
     'tool_response_empty': 'ChatGPT completed the PC-agent response without text or function calls.',
     'tool_response_invalid': 'ChatGPT returned a function call with missing or invalid fields. No tool actions from this response were executed.',
-    'response_format_error': 'TREN could not parse the ChatGPT response format. No tool actions from this response were executed.',
+    'response_format_error': 'VEYRA could not parse the ChatGPT response format. No tool actions from this response were executed.',
     'incomplete_response': 'ChatGPT did not complete its response. No partial answer was saved.',
     'storage_unavailable': 'ChatGPT credentials could not be protected or read. Existing credentials were preserved.',
     'identity_unavailable': 'ChatGPT identity verification is unavailable. Your saved connection was preserved; try again.',
@@ -517,7 +517,7 @@ class ChatGPT:
                         script_hash = base64.b64encode(hashlib.sha256(script.encode()).digest()).decode()
                         self.send_response(code)
                         self.send_header('Content-Security-Policy', "default-src 'none'; script-src 'sha256-" + script_hash + "'; frame-ancestors 'none'; base-uri 'none'")
-                        body = ('<!doctype html><meta charset="utf-8"><title>TREN sign-in</title><h1>Return to TREN</h1><p>TREN is verifying your connection. You can close this tab.</p><script>' + script + '</script>').encode()
+                        body = ('<!doctype html><meta charset="utf-8"><title>VEYRA sign-in</title><h1>Return to VEYRA</h1><p>VEYRA is verifying your connection. You can close this tab.</p><script>' + script + '</script>').encode()
                     else:
                         self.send_response(code)
                     self.send_header('Cache-Control', 'no-store')
@@ -539,7 +539,7 @@ class ChatGPT:
                       'code_challenge': base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode(),
                       'ext_agent_host_id': self.record['host_id'], 'prompt': 'consent'}
             if not saved_client:
-                params['agent_name_hint'] = 'TREN'
+                params['agent_name_hint'] = 'VEYRA'
             if not webbrowser.open(config['authorization_endpoint'] + '?' + urllib.parse.urlencode(params)):
                 raise ChatGPTError('provider_error')
             deadline = time.monotonic() + 600
@@ -598,4 +598,4 @@ class ChatGPT:
             self.models_cache = []
             self.error = None
             return {'ok': True, 'remote_revoked': not remote_error,
-                    'notice': 'Local credentials removed. Remote revocation failed; disconnect TREN in ChatGPT Settings.' if remote_error else None}
+                    'notice': 'Local credentials removed. Remote revocation failed; disconnect VEYRA in ChatGPT Settings.' if remote_error else None}

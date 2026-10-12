@@ -19,3 +19,15 @@ test('fresh bootstrap supplies runtimes without replacing existing backend data'
  assert.equal(fs.readFileSync(path.join(first.root,'app.py'),'utf8'),'updated backend');assert.equal(fs.readFileSync(path.join(first.root,'private-note.txt'),'utf8'),'keep me');
  }finally{fs.rmSync(temp,{recursive:true,force:true})}
 });
+
+// The rename must not create a new Chromium profile or leave the managed backend behind.
+test('rebrand reuses legacy desktop profiles in place',()=>{
+ const fs=require('node:fs'),os=require('node:os'),pick=require('./profile.cjs').legacyProfile;
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'veyra-profile-'));
+ try{assert.equal(pick(temp),path.join(temp,'tren-desktop'));
+  fs.mkdirSync(path.join(temp,'TREN'));fs.writeFileSync(path.join(temp,'TREN','installation.json'),'{}');
+  assert.equal(pick(temp),path.join(temp,'TREN'));
+  fs.mkdirSync(path.join(temp,'tren-desktop'));fs.writeFileSync(path.join(temp,'tren-desktop','installation.json'),'{}');
+  assert.equal(pick(temp),path.join(temp,'tren-desktop'));
+ }finally{fs.rmSync(temp,{recursive:true,force:true})}
+});

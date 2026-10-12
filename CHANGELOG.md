@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0 — 2026-10-12
+
+Rebrand the public application to VEYRA with the tagline “Your AI. Your computer. Your rules.” Add approved hero artwork, a transparent simplified V desktop icon, blue theme accents and branded Windows installer/menu/tray/welcome flow. New unnamed assistants use Nova; returning unnamed assistants retain TREN and explicit names are preserved. Keep legacy package/app/update identifiers, executable name, desktop profiles, storage paths and backend ZIP names compatible. New OAuth consent displays VEYRA; existing protected credentials are retained. Automated and Windows release acceptance is recorded in docs/TESTING.md separately from user acceptance.
+
 ## 0.10.0 — 2026-10-12
 
 First-install backend plus hash-verified private Python/Node runtimes; optional Codex/Ollama installers with explicit native confirmation and reuse checks. First-run assistant naming/ChatGPT/optional-tools onboarding, persisted assistant identity, returning-user migration, themed desktop title bar with a narrow validated preload bridge, and readable custom mode menu. Existing backend data/updater paths preserved. TREN remains the application brand pending user choice; DeepSeek/Grok/Claude remain planned. Fresh Windows/runtime/visual acceptance is distinct from synthetic tests.
