@@ -54,9 +54,6 @@ The integrated mega-update adds the following features. Acceptance evidence and 
 
 Basic ChatGPT/PC-agent setup no longer needs a separate Python/Node installation or mandatory Ollama download. Existing compatible Python installations can be reused; bundled runtime files do not replace global installations. Optional Ollama setup uses Windows winget and may show its installer/UAC prompt. See [Desktop setup](https://github.com/alecjhalpin/Veyra/blob/main/docs/DESKTOP.md).
 
-### Existing TREN users
-
-Install the new complete desktop package over your existing installation. It upgrades the selected backend on startup with verified backups. Keep your existing Tren-Local folder: data, auth, projects and models remain there. Rename your assistant under Settings → Your assistant. Returning users are not forced through a fresh setup.
 
 ### Source/browser setup
 
