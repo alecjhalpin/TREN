@@ -31,29 +31,26 @@ VEYRA is a Windows-first personal AI agent with a conversation-first desktop int
 | **Continuity** | Saved notes, reminders, task results and remembered, revocable device sessions. |
 | **Updates** | Download releases inside VEYRA, back up app files and restart while preserving your data. |
 
-## What's new in v0.12.0
+## What's new in v0.12.1
 
-The integrated mega-update adds the following features. Acceptance evidence and remaining user-device checks are recorded in [Testing](docs/TESTING.md).
+- PC tasks keep normal conversation bubbles while progress, approvals and evidence remain available.
+- Typed replies stay silent; click the speaker to read the latest reply. The orb appears only during explicit voice activity. Optional spoken replies apply only to the specific microphone request.
+- Windowless administrator-worker setup. Existing workers can be reconfigured once in Settings after updating.
+- Browser tools accept flat/nested options and complete Markdown links without treating formatted links as literal URLs.
+- Malformed tool arguments return recorded, non-executed errors so agents can correct them. Administrator requests use the Windows worker directly rather than creating an AI agent of that name.
 
-- Independent agents, scoped SQLite memory, pinned facts and shared sub-agent budgets.
-- Cron workflows, durable task evidence, recovery checkpoints, notifications and Stop all.
-- Dedicated Playwright browser profiles, native stdio/HTTP MCP connections and workspace preview.
-- Click-to-talk local Whisper/Kokoro voice, interruption, mute, device selection and a reactive orb.
-- Warned whole-PC autonomous mode and optional unattended administrator worker after separate UAC setup.
-- Portable backup/restore and one desktop Update button for the complete package.
-
+Agents, scoped memory, cron, MCP, browser automation, workspace preview, backups, voice and complete-package updates from v0.12.0 remain included. [Acceptance evidence](docs/TESTING.md) distinguishes automated checks from live-account testing.
 
 ## Getting started
 
 ### New Windows installation
 
-1. Download **VEYRA-Desktop-Setup-0.12.0.exe** from [Releases](https://github.com/alecjhalpin/Veyra/releases/latest) and run it.
+1. Download **VEYRA-Desktop-Setup-0.12.1.exe** from [Releases](https://github.com/alecjhalpin/Veyra/releases/latest) and run it.
 2. Open the desktop shortcut. The app prepares its bundled backend/runtimes if no existing installation is found.
 3. Choose your assistant's name and connect ChatGPT in the welcome flow. No API key is configured for this connection; eligible-plan limits apply.
 4. Optionally install/check Codex and connect its separate ChatGPT CLI login. Choose local AI only if you want Ollama and its roughly 5 GB default model download.
 
 Basic ChatGPT/PC-agent setup no longer needs a separate Python/Node installation or mandatory Ollama download. Existing compatible Python installations can be reused; bundled runtime files do not replace global installations. Optional Ollama setup uses Windows winget and may show its installer/UAC prompt. See [Desktop setup](https://github.com/alecjhalpin/Veyra/blob/main/docs/DESKTOP.md).
-
 
 ### Source/browser setup
 
@@ -64,6 +61,7 @@ The release ZIP and setup.bat remain available for manual/source installations. 
 In the installed desktop app: **Settings → Updates → Update VEYRA**. The app downloads the complete update and asks before installing and restarting. Source/browser installations retain their backend update and recovery controls.
 
 Updates preserve current data, pairing secrets, projects, host settings and installed models. Finish or cancel active work first. **Do not rerun setup to upgrade.**
+
 
 
 ## What's next

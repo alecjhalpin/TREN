@@ -1,6 +1,6 @@
 # VEYRA technical guide
 
-Current source: v0.12.0. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
+Current source: v0.12.1. This guide describes implemented functionality; verification scope is in [Testing](TESTING.md).
 
 ## Architecture and providers
 
@@ -119,3 +119,5 @@ Pinned runtime: Playwright 1.64.0, Transformers.js 3.8.1, Kokoro.js 1.2.1, sharp
 
 
 Windows desktop packages include signature-verified Microsoft app-local C++ runtime DLLs beside private Node and ONNX, with provenance and redistribution notices. End users do not need the build host's PowerShell 7 or Visual Studio installation. Both speech preview and recognition place model caches under preserved data/voice_models. Editing the default agent name also updates the saved assistant identity.
+
+Browser dispatch forwards flat or nested options but owns profile/workspace scope. Complete Markdown HTTP(S) links are normalized before navigation; embedded credentials and unsafe schemes remain rejected. Invalid JSON tool arguments produce recorded non-executed tool errors rather than terminating the agent loop. Voice playback is explicit or bound to a microphone-origin job; typed jobs never inherit microphone speech state.

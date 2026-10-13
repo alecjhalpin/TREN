@@ -31,3 +31,10 @@ Visible program folders and shortcuts use VEYRA. Legacy executable `TREN.exe`, a
 A foreign or incompatible server on the port is rejected. Startup logs are local under `data/updates/desktop.log`; keep them private because they may contain pairing information. A failed update retains backups and recovery logs. The renderer has context isolation, sandboxing and no Node integration; only local audio/notification permissions and narrowly validated desktop actions are exposed. External links open in the system browser.
 
 See [Testing](TESTING.md) for exact CI evidence and remaining installed-PC acceptance. Native phone, wake-word and arbitrary visual desktop-control features are not delivered.
+
+
+## v0.12.1 voice and worker update
+
+Typed conversations remain silent. Click the speaker to read the latest assistant reply. The orb and Stop voice control appear only during voice activity, and hide again when idle. The Settings spoken-reply option applies only to a specific microphone request, not later typed messages.
+
+Administrator workers created before v0.12.1 retain their old python.exe Task Scheduler launcher. After updating, use Settings → Reconfigure elevated worker and authorize normal UAC once to replace it with pythonw.exe. New enrollment is windowless. Disabling the worker still revokes unattended elevation.

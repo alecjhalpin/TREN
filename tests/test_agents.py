@@ -183,3 +183,46 @@ class AgentTests(unittest.TestCase):
   self.engine.cancel_response=lambda tag=None:(cancelled.append(tag),gate.set())
   with patch.object(self.engine,'limits',return_value={**DEFAULT_LIMITS,'seconds':.1}):jid=self.engine.submit('default','Wait for provider')
   result=self.wait(jid);self.assertEqual(result['status'],'failed');self.assertIn('runtime budget',result['result']);self.assertIn(jid,cancelled)
+
+ def test_browser_accepts_flat_and_nested_options_without_crossing_scope(self):
+  captured=[]
+  self.engine.bridge.call=lambda method,params,cancelled:captured.append(params) or {'title':'Fixture'}
+  agent=self.engine.agent('default');permission={'tools':['browser'],'mcp_ids':[]}
+  self.engine.dispatch('unused',agent,permission,'browser',{'action':'navigate','url':'https://example.com'},lambda:False)
+  self.assertEqual(captured[-1]['options']['url'],'https://example.com')
+  self.engine.dispatch('unused',agent,permission,'browser',{'action':'navigate','url':'https://wrong.example','options':{'url':'https://example.com'},'profile':'foreign','workspace':'foreign'},lambda:False)
+  self.assertEqual(captured[-1]['options']['url'],'https://example.com')
+  self.assertEqual(captured[-1]['profile'],agent['project'])
+  self.assertNotIn('profile',captured[-1]['options'])
+ def test_bad_tool_json_returns_evidence_then_allows_corrected_read(self):
+  replies=[
+   {'text':'','calls':[{'name':'browser','call_id':'bad','arguments':''}],'output':[]},
+   {'text':'','calls':[{'name':'browser','call_id':'corrected','arguments':json.dumps({'request':{'action':'navigate','url':'https://example.com'}})}],'output':[]},
+   {'text':'Tool-verified fixture','calls':[],'output':[]}]
+  evidence=[]
+  def respond(messages,*rest):
+   evidence.extend(m for m in messages if m.get('type')=='function_call_output')
+   return replies.pop(0)
+  self.response=respond;jid=self.engine.submit('default','Read one page');job=self.wait(jid)
+  self.assertEqual(job['status'],'finished_with_errors')
+  self.assertEqual([step['status'] for step in job['steps']],['failed','done'])
+  self.assertTrue(any('"executed": false' in m['output'] for m in evidence))
+  self.assertEqual(job['result'],'Tool-verified fixture')
+
+ def test_delegated_browser_flat_url_reaches_child_tools_and_parent(self):
+  turns={};captured=[]
+  self.engine.bridge.call=lambda method,params,cancelled:captured.append(params) or {'title':'Example Domain'}
+  def model(messages,*rest):
+   name=threading.current_thread().name;turns[name]=turns.get(name,0)+1
+   if messages[0]['content']=='Parent browser test' and turns[name]==1:
+    args={'operation':'spawn','name':'Research','mission':'Child browser test','tools':['browser']}
+    return {'text':'','output':[],'calls':[{'name':'delegate','call_id':'spawn','arguments':json.dumps({'request':json.dumps(args)})}]}
+   if messages[0]['content']=='Child browser test' and turns[name]==1:
+    return {'text':'','output':[],'calls':[{'name':'browser','call_id':'nav','arguments':json.dumps({'request':json.dumps({'action':'navigate','url':'https://example.com'})})}]}
+   return {'text':'Example Domain','output':[],'calls':[]}
+  self.response=model;root=self.wait(self.engine.submit('default','Parent browser test'))
+  self.assertEqual(root['status'],'completed',root)
+  self.assertEqual(captured[0]['options']['url'],'https://example.com')
+  self.assertEqual(len(captured),1)
+  children=[j for j in self.engine.state()['jobs'] if j['parent_id']==root['id']]
+  self.assertEqual(children[0]['status'],'completed');self.assertEqual(root['result'],'Example Domain')

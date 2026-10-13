@@ -27,12 +27,15 @@ class Broker:
     def enable(self,confirmed=False):
         if not confirmed:raise ValueError('Confirm unattended administrator access. This permits enabled autonomous agents to modify system-wide files, install programs and change Windows configuration without another VEYRA approval for each action.')
         if os.name!='nt':raise ValueError('Elevated background access requires a Windows administrator account.')
+        if self.status()['running']:self.disable()
         self.directory.mkdir(parents=True,exist_ok=True)
         if not (self.directory/'key.dpapi').exists():(self.directory/'key.dpapi').write_bytes(protected_bytes(secrets.token_bytes(32)))
         (self.directory/'disabled').unlink(missing_ok=True);(self.directory/'enabled').touch()
         user=subprocess.run(['whoami.exe'],capture_output=True,text=True,timeout=5,**ct.process_options()).stdout.strip()
+        worker_executable=Path(sys.executable).with_name('pythonw.exe')
+        if not worker_executable.is_file():raise RuntimeError('Windowless Python is unavailable. Use the bundled Windows desktop runtime.')
         action_args=subprocess.list2cmdline([str(Path(__file__).resolve()),'--worker',str(self.data)])
-        script=("$ErrorActionPreference='Stop'; $a=New-ScheduledTaskAction -Execute "+ps_literal(sys.executable)+" -Argument "+ps_literal(action_args)+"; $p=New-ScheduledTaskPrincipal -UserId "+ps_literal(user)+" -LogonType Interactive -RunLevel Highest; $t=New-ScheduledTaskTrigger -AtLogOn -User "+ps_literal(user)+"; $s=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -StartWhenAvailable; Register-ScheduledTask -TaskName "+ps_literal(TASK_NAME)+" -Action $a -Principal $p -Trigger $t -Settings $s -Force | Out-Null; Start-ScheduledTask -TaskName "+ps_literal(TASK_NAME))
+        script=("$ErrorActionPreference='Stop'; $a=New-ScheduledTaskAction -Execute "+ps_literal(str(worker_executable))+" -Argument "+ps_literal(action_args)+"; $p=New-ScheduledTaskPrincipal -UserId "+ps_literal(user)+" -LogonType Interactive -RunLevel Highest; $t=New-ScheduledTaskTrigger -AtLogOn -User "+ps_literal(user)+"; $s=New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -StartWhenAvailable; Register-ScheduledTask -TaskName "+ps_literal(TASK_NAME)+" -Action $a -Principal $p -Trigger $t -Settings $s -Force | Out-Null; Start-ScheduledTask -TaskName "+ps_literal(TASK_NAME))
         try:
             result=ct.pc_elevated({'script':script,'cwd':'','timeout_seconds':60,'purpose':'Install the explicitly enabled VEYRA elevated worker for this Windows user.','elevated':True},self.data,lambda:False)
             if result.get('ok') is False or result.get('exit_code',0)!=0:raise RuntimeError('Elevated worker setup did not complete: '+str(result)[:1000])

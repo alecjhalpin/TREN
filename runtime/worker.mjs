@@ -1,3 +1,4 @@
+import {browserURL} from './snapshot.mjs';
 // VEYRA local tools. stdin/stdout is private JSON-RPC-like framing, never an HTTP service.
 import readline from 'node:readline';
 import fs from 'node:fs';
@@ -58,7 +59,7 @@ async function browser(p,signal){
   page.setDefaultTimeout(Math.min(30000,Number(options.timeout_ms)||15000));
   const locator=()=>options.ref?page.locator('[data-veyra-ref='+JSON.stringify(String(options.ref))+']'):options.role?page.getByRole(options.role,{name:options.name,exact:options.exact!==false}):page.locator(String(options.selector||'body'));
   switch(action){
-   case 'open':case 'navigate':{const url=new URL(options.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw Error('Use a plain HTTP(S) URL');await page.goto(url.href,{waitUntil:'domcontentloaded',timeout:45000});break}
+   case 'open':case 'navigate':{const url=browserURL(options.url);await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});break}
    case 'snapshot':return await snapshot(page,entry);
    case 'extract':return {url:page.url(),text:(await locator().innerText()).slice(0,30000)};
    case 'click':await locator().click();break;

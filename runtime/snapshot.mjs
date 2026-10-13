@@ -83,3 +83,14 @@ export function buildPageSnapshot(
   const text = header + formatSnapshotText(elements)
   return { url, title, elements, text }
 }
+
+// Normalize one complete Markdown link only; never infer a URL from arbitrary text.
+export function browserURL(value){
+ if(typeof value!=='string')throw Error('Supply a plain HTTP(S) URL in options.url');
+ let source=value.trim();
+ const link=source.match(/^\[(?:[^\]\\]|\\.)*\]\((https?:\/\/[^\s]+)\)$/i);
+ if(link)source=link[1];
+ let url;try{url=new URL(source)}catch{throw Error('Invalid browser URL: supply a plain HTTP(S) URL in options.url')}
+ if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw Error('Use a plain HTTP(S) URL without embedded credentials');
+ return url.href;
+}

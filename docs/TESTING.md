@@ -1,5 +1,9 @@
 # Testing
 
+## v0.12.1 regression acceptance
+
+Local suite: 111 Python tests (108 passed, three opt-in skips), 13 Node tests (11 passed, two Windows skips), composer/syntax checks passed. New tests cover delegated flat browser arguments, profile/workspace ownership, malformed argument reporting/correction, and safe Markdown URL normalization. Windows gates exercise real Edge navigation through a Markdown link, pythonw.exe Task Scheduler enrollment, silent typed replies, explicit microphone reply playback and normal PC conversation bubbles. Main-only publication requires every gate to pass. Live user-provider sub-agent acceptance remains separate.
+
 ## Integrated v0.12 acceptance
 
 Verified source checkpoint `0f4b8fa296901604b6f4aa7312f5d28ab53ba78b`: [Actions 38323184389](https://github.com/alecjhalpin/Veyra/actions/runs/38323184389) passed Linux validation and Windows acceptance. The ordinary Python suite has 108 tests: 105 passed and three opt-in checks skipped locally; all three opt-in voice/admin checks passed on Windows. Node runtime/desktop checks passed 10 locally with two Windows skips and all 12 on Windows. Composer and syntax checks passed. Windows verified Edge actions, cold local voice preview and recognition, private native C++ runtime loading, elevated rimraf/glob installation and execution, Task Scheduler enrollment/revocation, microphone capture/calibration with a fake device, actual installed dependency imports and app launch, and installer/upgrade/profile/shortcut preservation. Physical microphone/speaker quality, the real GPT account, interactive user UAC consent and overnight daily-use workflows remain separate user acceptance.

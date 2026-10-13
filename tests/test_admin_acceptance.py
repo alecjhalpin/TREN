@@ -43,7 +43,7 @@ class AdminAcceptance(unittest.TestCase):
    broker=Broker(Path(directory))
    try:
     result=broker.enable(confirmed=True);self.assertTrue(result['enabled'],result)
-    probe=subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',"$t=Get-ScheduledTask -TaskName 'VEYRA Elevated Worker'; if($t.Principal.RunLevel -ne 'Highest' -or $t.Principal.LogonType -ne 'Interactive'){throw 'Wrong task principal'}; if($t.Actions.Arguments -notmatch '--worker'){throw 'Wrong task action'}; Write-Output 'ENROLLMENT_VERIFIED'"],capture_output=True,text=True,timeout=20,**ct.process_options())
+    probe=subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-Command',"$t=Get-ScheduledTask -TaskName 'VEYRA Elevated Worker'; if($t.Principal.RunLevel -ne 'Highest' -or $t.Principal.LogonType -ne 'Interactive'){throw 'Wrong task principal'}; if($t.Actions.Execute -notmatch 'pythonw[.]exe$'){throw 'Worker is not windowless'}; if($t.Actions.Arguments -notmatch '--worker'){throw 'Wrong task action'}; Write-Output 'ENROLLMENT_VERIFIED'"],capture_output=True,text=True,timeout=20,**ct.process_options())
     self.assertEqual(probe.returncode,0,probe.stderr);self.assertIn('ENROLLMENT_VERIFIED',probe.stdout)
     broker.disable();self.assertFalse(broker.status()['enabled'])
     print('Verified actual Task Scheduler enrollment/action/interactive-highest principal and disable on already-elevated runner. User UAC consent remains separate.')

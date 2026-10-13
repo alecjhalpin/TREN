@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.1 — 2026-10-12
+
+Keep PC-agent prompts/replies in the normal conversation layout, with progress, approvals and evidence retained. Stop automatic reading of typed replies, including after microphone use; provide explicit latest-reply playback and hide the orb while inactive. Optional microphone reply playback is bound to that submitted job and cleared by Stop voice.
+
+Use pythonw.exe for the authenticated administrator scheduled task. Existing enabled workers can be explicitly reconfigured in Settings to replace their old console launcher; UAC authorization remains required. Clarify that administrator requests use pc_command/elevated directly rather than an AI sub-agent.
+
+Forward browser options supplied at either the top level or inside options while preserving server-owned profile/workspace scope. Normalize one complete Markdown HTTP(S) link, reject unsafe/ambiguous URLs, and improve validation messages. Record malformed tool arguments as not executed and return errors to the model for correction, retaining failure evidence and mutation replay protections.
+
+Local acceptance: 111 Python tests, 108 passed and three opt-in skips; 13 Node checks, 11 passed and two Windows skips; composer/syntax checks pass. Added delegated-browser and invalid-argument recovery regressions. Release publication is gated on real Windows Edge, windowless Task Scheduler enrollment, conversation/voice DOM behavior, local models and actual installer/upgrade acceptance. Live GPT sub-agent success still requires user confirmation after the update.
+
+User acceptance of v0.12.0 confirmed chat, storage, file creation/denial, browser use, memory after restart, scheduling, automatic/review switching, direct elevated diagnostic and revocation, bundled npm/rimraf dependency installation/execution, and no disruption to keyboard/mouse. Sub-agent browser attempts exposed the defects above; these are not recorded as successful live acceptance.
+
 ## 0.12.0 — 2026-10-12
 
 Independent agents and scoped SQLite memory; cron workflows and recursive sub-agents with shared budgets; durable task evidence, checkpoints, notifications and Stop All; pooled native MCP and Playwright browser tools; workspace preview; local Whisper/Kokoro voice, calibration and reactive orb; explicitly confirmed whole-PC automatic mode and optional unattended administrator worker; portable backup/restore; one-button complete desktop updates. Preserve existing data, projects, assistant identity and authentication.

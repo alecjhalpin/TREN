@@ -1,8 +1,8 @@
 {
   "name": "tren-desktop",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "private": true,
-  "description": "VEYRA — Your AI. Your computer. Your rules.",
+  "description": "VEYRA \u2014 Your AI. Your computer. Your rules.",
   "author": "VEYRA",
   "main": "main.cjs",
   "scripts": {
