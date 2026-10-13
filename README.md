@@ -65,14 +65,6 @@ In the installed desktop app: **Settings → Updates → Update VEYRA**. The app
 
 Updates preserve current data, pairing secrets, projects, host settings and installed models. Finish or cancel active work first. **Do not rerun setup to upgrade.**
 
-<details>
-<summary>Older installations and troubleshooting</summary>
-
-For older installations without the updater, stop TREN, extract the release asset into a new folder and run `upgrade.bat`. It detects the standard Desktop/Tren-Local installation or asks you to select it. Then start the existing installation.
-
-If an update fails its startup check, inspect `data/updates/restart.log` in the installed TREN folder. The updater attempts to restore the previous code; check the displayed installed version before retrying. Keep your data and backup folders.
-
-</details>
 
 ## What's next
 
